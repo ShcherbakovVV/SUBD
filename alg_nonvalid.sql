@@ -15,4 +15,4 @@ name text not null,
 base text not null
 ); #таблица для некорректных записей таблицы zb 
 insert into zb_notvalid select zb.name, zb.base from zb 
-where length(zb.name)>12 or length(zb.name)>11;
+where length(zb.name)>12 or length(zb.base)>11;
