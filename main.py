@@ -20,17 +20,17 @@ filters.place( x=670, y=30 )
 date_torg = Label( root, text='По дате торгов', width=14, height=1 )
 date_torg.place( x=612, y=60 )
 
-#надпись "ОТ"
-ot = Label( root, text='ОТ', width=2, height=1 )
-ot.place( x=620, y=90 )
+#надпись "ОТ (по дате)"
+ot_date = Label( root, text='ОТ', width=2, height=1 )
+ot_date.place( x=620, y=90 )
 
 #текстовое поле для ввода левой границы даты
 date_torg_from = Text( root, width=6, height=1 )
 date_torg_from.place( x=642, y=90 )
 
-#надпись "ДО"
-do = Label( root, text='ДО', width=2, height=1 )
-do.place( x=700, y=90 )
+#надпись "ДО (по дате)"
+do_date = Label( root, text='ДО', width=2, height=1 )
+do_date.place( x=700, y=90 )
 
 #текстовое поле для ввода правой границы даты
 date_torg_to = Text( root, width=6, height=1 )
@@ -44,7 +44,31 @@ name.place( x=617, y=120 )
 name_sel = StringVar(root)
 name_sel.set('-Выберите фьючерс-')
 name = OptionMenu( root, name_sel, '-Выберите фьючерс-', 'тест1', 'тест2', 'тест3' )
-name.place( x=620, y=150 )
+name.place( x=620, y=148 )
+
+#надпись "По котировке"
+quot = Label( root, text='По котировке', width=17, height=1 )
+quot.place( x=617, y=180 )
+
+#надпись "ОТ (по котировке)"
+ot_quot = Label( root, text='ОТ', width=2, height=1 )
+ot_quot.place( x=620, y=210 )
+
+#текстовое поле для ввода левой границы котировки
+quot_from = Text( root, width=6, height=1 )
+quot_from.place( x=642, y=210 )
+
+#надпись "ДО (по котировке)"
+do_quot = Label( root, text='ДО', width=2, height=1 )
+do_quot.place( x=700, y=210 )
+
+#текстовое поле для ввода правой границы котировки
+quot_to = Text( root, width=6, height=1 )
+quot_to.place( x=722, y=210 )
+
+#кнопка "Применить фильтр"
+append = Button( root, text='Применить фильтр', width=20, height=1 )
+append.place( x=628, y=270 )
 
 
 
