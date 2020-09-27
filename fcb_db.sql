@@ -24,12 +24,15 @@ DROP TABLE IF EXISTS `f_zb`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `f_zb` (
   `torg_date` date DEFAULT NULL,
-  `name` text,
+  `name` varchar(12) DEFAULT NULL,
   `day_end` date DEFAULT NULL,
   `quotation` double DEFAULT NULL,
   `min_quot` double DEFAULT NULL,
   `max_quot` double DEFAULT NULL,
-  `num_contr` int DEFAULT NULL
+  `num_contr` int DEFAULT NULL,
+  KEY `ind_date_name` (`torg_date`,`name`),
+  KEY `ind_name_idx` (`name`),
+  CONSTRAINT `ind_name` FOREIGN KEY (`name`) REFERENCES `zb` (`name`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -51,9 +54,11 @@ DROP TABLE IF EXISTS `zb`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `zb` (
-  `name` text,
-  `base` text,
-  `exec_date` date DEFAULT NULL
+  `name` varchar(12) DEFAULT NULL,
+  `base` varchar(11) DEFAULT NULL,
+  `exec_date` date DEFAULT NULL,
+  KEY `ind_name` (`name`),
+  CONSTRAINT `ind_date_name` FOREIGN KEY (`name`) REFERENCES `f_zb` (`name`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -76,4 +81,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-09-13 17:50:21
+-- Dump completed on 2020-09-23 21:54:47
