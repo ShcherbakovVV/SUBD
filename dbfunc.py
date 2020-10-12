@@ -11,7 +11,6 @@ def load_and_filter(username, username_password, l_date, r_date,
         os.remove('C:\\temp\\out.csv')
     
     #соединение с базой данных
-    #вместо 0000 указать свой пароль, указанный при установке MySQl
     #также необходимо удалить все после = в строке, начинающейся на "secure-file-priv"
     #(должно остаться просто secure-file-priv = )
     #в файле C:\ProgramData\MySQL\MySQL Server 8.0\my.ini (от имени администратора)
@@ -116,14 +115,16 @@ def count_rows(text):
 
 #функция, открывающая окно с изменением/добавлением записи
 def edit_new_window(root, edit_or_new_str):
-    
-    #добавить проверку на существование еще одного окна
-    
     edit_new_wnd = Toplevel(root)
-    edit_new_wnd.geometry('590x140+420+250')
+    edit_new_wnd.geometry('590x145+410+280')
     edit_new_wnd.title( edit_or_new_str )
-    edit_new_wnd.minsize(590,140)
-    edit_new_wnd.maxsize(590,140)
+    edit_new_wnd.minsize(590,145)
+    edit_new_wnd.maxsize(590,145)
+
+    #главное окно неактивно
+    edit_new_wnd.grab_set()                
+    edit_new_wnd.focus_set()
+
     edit_new_msg = Label( edit_new_wnd, text=edit_or_new_str, font=('TkDefault', 12, 'bold'), anchor='center', width=40 )
     edit_new_msg.place( relx=0.5, rely=0.1, anchor=CENTER )
     
@@ -151,11 +152,11 @@ def edit_new_window(root, edit_or_new_str):
 
     #пояснения к ячейкам
     date_format_torg = Label( edit_new_wnd, text='yyyy-mm-dd', font=('TkDefaultFont', 9), width=10 )
-    date_format_torg.place( x=18, y=73 )
+    date_format_torg.place( x=18, y=72 )
     date_format_end = Label( edit_new_wnd, text='yyyy-mm-dd', font=('TkDefaultFont', 9), width=10 )
-    date_format_end.place( x=204, y=73 )
+    date_format_end.place( x=204, y=72 )
     name_format = Label( edit_new_wnd, text='12345-6789', font=('TkDefaultFont', 9), width=10 )
-    name_format.place( x=110, y=73 )
+    name_format.place( x=110, y=72 )
     
     #кнопка "Применить"
     def edit_new_set_on(self):
@@ -189,36 +190,51 @@ def edit_new_window(root, edit_or_new_str):
             error_window(root, 'Неправильный формат записи!')
                
     edit_new_set = Button( edit_new_wnd, text='Применить', width=12 )
-    edit_new_set.place( x=206, y=100 )
+    edit_new_set.place( x=206, y=105 )
     edit_new_set.bind( '<Button-1>', edit_new_set_on )
 
     #кнопка "Отмена"
     def edit_new_cancel_on(self):
+        root.grab_release()
         edit_new_wnd.destroy()
     edit_new_cancel = Button( edit_new_wnd, text='Отмена', width=12 )
-    edit_new_cancel.place( x=310, y=100 )
+    edit_new_cancel.place( x=310, y=105 )
     edit_new_cancel.bind( '<Button-1>', edit_new_cancel_on )
+
+    def edit_new_close():
+        root.grab_release()
+        edit_new_wnd.destroy()
+    edit_new_wnd.protocol("WM_DELETE_WINDOW", edit_new_close)       #при нажатии "закрыть"
     
     edit_new_wnd.mainloop()
 
 #функция, открывающая окно-уведомление об ошибке
 def error_window(root, err_str):
-    
-    #добавить проверку на существование еще одного окна
-    
     error_wnd = Toplevel(root)
-    error_wnd.geometry('320x100+420+250')
+    error_wnd.geometry('320x100+550+300')
     error_wnd.title('Ошибка')
     error_wnd.minsize(320,100)
     error_wnd.maxsize(320,100)
+
+    #главное окно неактивно
+    error_wnd.grab_set()                
+    error_wnd.attributes('-topmost', 'true')
+
     error_msg = Label( error_wnd, text=err_str, anchor='center', width=60 )
     error_msg.place( relx=0.5, rely=0.33, anchor=CENTER )
     
     #кнопка ОК
     def error_ok_on(self):
+        root.grab_release()
         error_wnd.destroy()
     error_ok = Button( error_wnd, text='ОК', width=10 )
     error_ok.place( x=125, y=65 )
     error_ok.bind( '<Button-1>', error_ok_on )
+
+    def error_close():
+        root.grab_release()
+        error_wnd.attributes('-topmost', 'false')
+        error_wnd.destroy()
+    error_wnd.protocol("WM_DELETE_WINDOW", error_close)     #при нажатии "закрыть"
     
     error_wnd.mainloop()
