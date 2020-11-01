@@ -47,6 +47,28 @@ INSERT INTO `f_zb` VALUES ('1996-02-05','21057-1602','1996-04-17',91.11,91.05,91
 UNLOCK TABLES;
 
 --
+-- Table structure for table `maxmin`
+--
+
+DROP TABLE IF EXISTS `maxmin`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `maxmin` (
+  `max_min_tdate` date NOT NULL,
+  `max_min_quot` double NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `maxmin`
+--
+
+LOCK TABLES `maxmin` WRITE;
+/*!40000 ALTER TABLE `maxmin` DISABLE KEYS */;
+/*!40000 ALTER TABLE `maxmin` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `zb`
 --
 
@@ -81,4 +103,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-10-09 20:38:31
+-- Dump completed on 2020-11-01 19:11:29
