@@ -1,7 +1,70 @@
 from tkintertable import *
 
 #пользовательская модификация классов Tkintertable
+class MyTableModel(TableModel):
+    edit_records = [[]]
+    already_edited_rows = set()
+    def setValueAt(self, value, rowIndex, columnIndex):
+        """Changed the dictionary when cell is updated by user"""
+        name = self.getRecName(rowIndex)
+        row_to_change = list( self.getRecordAtRow(rowIndex).values() )
+        colname = self.getColumnName(columnIndex)
+        coltype = self.columntypes[colname]
+        if coltype == 'number':
+            try:
+                if value == '': #need this to allow deletion of values
+                    self.data[name][colname] = ''
+                    if rowIndex not in self.already_edited_rows:
+                        self.edit_records.append( row_to_change )
+                    else:
+                        self.edit_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
+                else:
+                    self.data[name][colname] = float(value)
+                    if rowIndex not in self.already_edited_rows:
+                        self.edit_records.append( row_to_change )
+                    else:
+                        self.edit_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
+            except:
+                pass
+        else:
+            self.data[name][colname] = value
+            if rowIndex not in self.already_edited_rows:
+                self.edit_records.append( row_to_change )
+            else:
+                self.edit_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
+        print(self.edit_records)
+        self.already_edited_rows.add(rowIndex)
+        return
+    
+    def copy(self):
+        M = MyTableModel()
+        data = self.getData()
+        M.setupModel(data)
+        return M
+
 class MyColumnHeader(ColumnHeader):
+    def handle_left_click(self,event):
+        """Does cell selection when mouse is clicked on canvas"""
+        pass
+    def handle_left_release(self,event):
+        """When mouse released implement resize or col move"""
+        pass
+    def handle_mouse_drag(self, event):
+        """Handle column drag, will be either to move cols or resize"""
+        pass
+    def handle_mouse_move(self, event):
+        """Handle mouse moved in header, if near divider draw resize symbol"""
+        pass
+    def handle_left_shift_click(self, event):
+        """Handle shift click, for selecting multiple cols"""
+        pass
+    def draw_resize_symbol(self, col):
+        """Draw a symbol to show that col can be resized when mouse here"""
+        pass
+    def drawRect(self,col, tag=None, color=None, outline=None, delete=1):
+        """User has clicked to select a col"""
+        pass
+    
     def popupMenu(self, event):
         """Add left and right click behaviour for column header"""
         colname = self.model.columnNames[self.table.currentcol]
@@ -20,46 +83,211 @@ class MyColumnHeader(ColumnHeader):
         return popupmenu
 
 class MyTableCanvas(TableCanvas):
-    def addRows(self, num=None):
-        if num == None:
-            num = simpledialog.askinteger("Сколько записей?",
-                                            "Количество записей",initialvalue=1,
-                                             parent=self.parentframe)
-        if not num:
-            return
-        keys = self.model.autoAddRows(num)
+    del_records = []
+    def __init__(self, parent=None, model=None, data=None, read_only=False,
+                 width=None, height=None,
+                 rows=10, cols=5, **kwargs):
+        Canvas.__init__( self, parent, bg='white',
+                         width=width, height=height,
+                         relief=GROOVE,
+                         scrollregion=(0,0,300,200))
+        self.parentframe = parent
+        #get platform into a variable
+        self.ostyp = self.checkOSType()
+        self.platform = platform.system()
+        self.width = width
+        self.height = height
+        self.set_defaults()
+
+        self.currentpage = None
+        self.navFrame = None
+        self.currentrow = 0
+        self.currentcol = 0
+        self.reverseorder = 0
+        self.startrow = self.endrow = None
+        self.startcol = self.endcol = None
+        self.allrows = False       #for selected all rows without setting multiplerowlist
+        self.multiplerowlist=[]
+        self.multiplecollist=[]
+        self.col_positions=[]       #record current column grid positions
+        self.mode = 'normal'
+        self.read_only = read_only
+        self.filtered = False
+
+        self.loadPrefs()
+        #set any options passed in kwargs to overwrite defaults and prefs
+        for key in kwargs:
+            self.__dict__[key] = kwargs[key]
+
+        if data is not None:
+            self.model = MyTableModel()
+            self.model.importDict(data)
+        elif model is not None:
+            self.model = model
+        else:
+            self.model = MyTableModel(rows=rows,columns=cols)
+
+        self.rows = self.model.getRowCount()
+        self.cols = self.model.getColumnCount()
+        self.tablewidth = (self.cellwidth)*self.cols
+        self.do_bindings()
+        #initial sort order
+        self.model.setSortOrder()
+
+        #column specific actions, define for every column type in the model
+        #when you add a column type you should edit this dict
+        self.columnactions = {'text' : {"Edit":  'drawCellEntry' },
+                              'number' : {"Edit": 'drawCellEntry' }}
+        self.setFontSize()
+        return
+    
+    def addRow( self, key=None, **kwargs ):
+        key = self.model.addRow( key, **kwargs )
         self.redrawTable()
-        self.setSelectedRow(self.model.getRecordIndex(keys[0]))
+        added_row = int( self.model.getRecordIndex( key ) )
+        self.setSelectedRow( added_row )
+        #self.movetoSelectedRow( added_row-1, added_row-1 )
+        return
+
+    def createfromDict(self, data):
+        """Attempt to create a new model/table from a dict"""
+        try:
+            namefield=self.namefield
+        except:
+            namefield=data.keys()[0]
+        self.model = MyTableModel()
+        self.model.importDict(data, namefield=namefield)
+        self.model.setSortOrder(0,reverse=self.reverseorder)
         return
     
     def deleteRow(self):
         if len(self.multiplerowlist)>1:
-            n = messagebox.askyesno("Удаление",
-                                      "Удалить выбранные записи?",
-                                      parent=self.parentframe)
+            n = messagebox.askyesno( "Удаление",
+                                     "Удалить выбранные записи?",
+                                     parent=self.parentframe )
             if n == True:
                 rows = self.multiplerowlist
+                for i in rows:
+                    del_rec_as_list = list(self.model.getRecordAtRow(i).values())
+                    self.del_records.append( del_rec_as_list )
+                    #del_rec_as_list[1]
+                    #self.columnNames.index(columnName)
                 self.model.deleteRows(rows)
                 self.clearSelected()
                 self.setSelectedRow(0)
                 self.redrawTable()
         else:
-            n = messagebox.askyesno("Удаление",
-                                      "Удалить эту запись?",
-                                      parent=self.parentframe)
+            n = messagebox.askyesno( "Удаление",
+                                     "Удалить эту запись?",
+                                     parent=self.parentframe )
             if n:
                 row = self.getSelectedRow()
+                del_rec_as_list = list(self.model.getRecordAtRow(row).values())
+                self.del_records.append( del_rec_as_list )
                 self.model.deleteRow(row)
                 self.setSelectedRow(row-1)
                 self.clearSelected()
                 self.redrawTable()
-        return    
+        return
+
+    def drawCellEntry(self, row, col, text=None):
+        """When the user single/double clicks on a text/number cell, bring up entry window"""
+
+        if self.read_only == True:
+            return
+        #absrow = self.get_AbsoluteRow(row)
+        h=self.rowheight
+        model=self.getModel()
+        cellvalue = self.model.getCellRecord(row, col)
+        if Formula.isFormula(cellvalue):
+            return
+        else:
+            text = self.model.getValueAt(row, col)
+        x1,y1,x2,y2 = self.getCellCoords(row,col)
+        w=x2-x1
+        #Draw an entry window
+        txtvar = StringVar()
+        txtvar.set(text)
+        def callback(e):
+            value = txtvar.get()
+            coltype = self.model.getColumnType(col)
+            if coltype == 'number':
+                sta = self.checkDataEntry(e)
+                if sta == 1:
+                    model.setValueAt(value,row,col)
+            elif coltype == 'text':
+                model.setValueAt(value,row,col)
+
+            color = self.model.getColorAt(row,col,'fg')
+            self.drawText(row, col, value, color, align=self.align)
+            if e.keysym=='Return':
+                self.delete('entry')
+                #self.drawRect(row, col)
+                #self.gotonextCell(e)
+            return
+
+        self.cellentry=Entry(self.parentframe,width=20,
+                        textvariable=txtvar,
+                        #bg=self.entrybackgr,
+                        #relief=FLAT,
+                        takefocus=1,
+                        font=self.thefont)
+        self.cellentry.icursor(END)
+        self.cellentry.bind('<Return>', callback)
+        self.cellentry.bind('<KeyRelease>', callback)
+        self.cellentry.focus_set()
+        self.entrywin=self.create_window(x1+self.inset,y1+self.inset,
+                                width=w-self.inset*2,height=h-self.inset*2,
+                                window=self.cellentry,anchor='nw',
+                                tag='entry')
+
+        return
+
+
+    def importCSV(self, filename=None):
+        """Import from csv file"""
+        if filename is None:
+            from .Tables_IO import TableImporter
+            importer = TableImporter()
+            importdialog = importer.import_Dialog(self.master)
+            self.master.wait_window(importdialog)
+            model = MyTableModel()
+            model.importDict(importer.data)
+        else:
+            model = MyTableModel()
+            model.importCSV(filename)
+        self.updateModel(model)
+        return
+    
+    '''def movetoSelectedRow( self, row=None, recname=None ):
+        row=self.model.getRecordIndex(recname)
+        self.setSelectedRow(row)
+        self.drawSelectedRow()
+        x,y = self.getCanvasPos(row, 0)
+        self.yview('moveto', y-0.01)
+        self.tablecolheader.yview('moveto', y)
+        self.updateModel(self.model)
+        return'''
+
+    def new(self):
+        """Clears all the data and makes a new table"""
+        mpDlg = MultipleValDialog(title='Create new table',
+                                    initialvalues=(10, 4),
+                                    labels=('rows','columns'),
+                                    types=('int','int'),
+                                    parent=self.parentframe)
+
+        if mpDlg.result == True:
+            rows = mpDlg.results[0]
+            cols = mpDlg.results[1]
+            model = MyTableModel(rows=rows,columns=cols)
+            self.updateModel(model)
+        return
     
     def popupMenu(self, event, rows=None, cols=None, outside=None):
-        defaultactions = {"Новая запись" : lambda : self.addRows(),
-                          "Удалить записи" : lambda : self.deleteRow(),
-                          "Filter Records" : self.showFilteringBar,}
-        general = ["Новая запись" , "Удалить записи", "Filter Records"]
+        defaultactions = { "Новая запись" : lambda : self.addRow(),
+                           "Удалить" : lambda : self.deleteRow() }
+        general = [ "Новая запись" , "Удалить" ]
 
         def createSubMenu(parent, label, commands):
             menu = Menu(parent, tearoff = 0)
@@ -129,3 +357,4 @@ class MyTableCanvas(TableCanvas):
         self.tablerowheader = RowHeader(self.parentframe, self)
         self.createTableFrame()
         return
+    
