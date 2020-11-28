@@ -2,38 +2,41 @@ from tkintertable import *
 
 #пользовательская модификация классов Tkintertable
 class MyTableModel(TableModel):
-    edit_records = [[]]
-    already_edited_rows = set()
+    edit_record = []
+    edit_records = dict()
+    already_edited = set()
     def setValueAt(self, value, rowIndex, columnIndex):
         """Changed the dictionary when cell is updated by user"""
         name = self.getRecName(rowIndex)
-        row_to_change = list( self.getRecordAtRow(rowIndex).values() )
+        if tuple( self.getRecordAtRow(rowIndex).values() ) not in self.edit_records.values():
+            self.edit_record.clear()
+        else:
+            self.edit_record.append( list( self.getRecordAtRow(rowIndex).values() ) )
         colname = self.getColumnName(columnIndex)
         coltype = self.columntypes[colname]
         if coltype == 'number':
             try:
                 if value == '': #need this to allow deletion of values
                     self.data[name][colname] = ''
-                    if rowIndex not in self.already_edited_rows:
-                        self.edit_records.append( row_to_change )
-                    else:
-                        self.edit_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
+                    self.edit_record.append( list( self.getRecordAtRow(rowIndex).values() ) )
+                    self.edit_records.update( { tuple(self.edit_record[0]):
+                                               tuple(self.edit_record[len(self.edit_record)-1]) } )
+                        
                 else:
                     self.data[name][colname] = float(value)
-                    if rowIndex not in self.already_edited_rows:
-                        self.edit_records.append( row_to_change )
-                    else:
-                        self.edit_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
+                    self.edit_record.append( list( self.getRecordAtRow(rowIndex).values() ) )
+                    self.edit_records.update( { tuple(self.edit_record[0]):
+                                               tuple(self.edit_record[len(self.edit_record)-1]) } )
             except:
                 pass
         else:
             self.data[name][colname] = value
-            if rowIndex not in self.already_edited_rows:
-                self.edit_records.append( row_to_change )
-            else:
-                self.edit_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
+            self.edit_record.append( list( self.getRecordAtRow(rowIndex).values() ) )
+            self.edit_records.update( { tuple(self.edit_record[0]):
+                                       tuple(self.edit_record[len(self.edit_record)-1]) } )
+        self.already_edited.add( list( self.getRecordAtRow(rowIndex).values() ) )
         print(self.edit_records)
-        self.already_edited_rows.add(rowIndex)
+        print(self.already_edited)
         return
     
     def copy(self):
@@ -193,9 +196,10 @@ class MyTableCanvas(TableCanvas):
     def drawCellEntry(self, row, col, text=None):
         """When the user single/double clicks on a text/number cell, bring up entry window"""
 
-        if self.read_only == True:
+        if self.read_only == True or col == 7:
             return
         #absrow = self.get_AbsoluteRow(row)
+        print(col)
         h=self.rowheight
         model=self.getModel()
         cellvalue = self.model.getCellRecord(row, col)
@@ -240,9 +244,151 @@ class MyTableCanvas(TableCanvas):
                                 width=w-self.inset*2,height=h-self.inset*2,
                                 window=self.cellentry,anchor='nw',
                                 tag='entry')
-
         return
 
+    def drawMultipleCells(self):
+        """Draw an outline box for multiple cell selection"""
+        if self.read_only == True:
+            pass
+        else:
+            self.delete('multicellrect')
+            rows = self.multiplerowlist
+            cols = self.multiplecollist
+            w=2
+            x1,y1,a,b = self.getCellCoords(rows[0],cols[0])
+            c,d,x2,y2 = self.getCellCoords(rows[len(rows)-1],cols[len(cols)-1])
+            rect = self.create_rectangle(x1+w/2,y1+w/2,x2,y2,
+                                 outline='blue',width=w,activefill='red',activestipple='gray25',
+                                 tag='multicellrect')
+        return
+
+    def drawMultipleRows(self, rowlist):
+        """Draw more than one row selection"""
+        if self.read_only == True:
+            pass
+        else:
+            self.delete('multiplesel')
+            for r in rowlist:
+                if r not in self.visiblerows or r > self.rows-1:
+                    continue
+                x1,y1,x2,y2 = self.getCellCoords(r,0)
+                x2 = self.tablewidth
+                rect = self.create_rectangle(x1,y1,x2,y2,
+                                          fill=self.multipleselectioncolor,
+                                          outline=self.rowselectedcolor,
+                                          tag=('multiplesel','rowrect'))
+            self.lower('multiplesel')
+            self.lower('fillrect')
+        return
+
+    def drawRect(self, row, col, color=None, tag=None, delete=1):
+        """Cell is colored"""
+        if self.read_only == True:
+            pass
+        else:
+            if delete==1:
+                self.delete('cellbg'+str(row)+str(col))
+            if color==None or color==self.cellbackgr:
+                return
+            else:
+                bg=color
+            if tag==None:
+                recttag='fillrect'
+            else:
+                recttag=tag
+            w=1
+            x1,y1,x2,y2 = self.getCellCoords(row,col)
+            rect = self.create_rectangle(x1+w/2,y1+w/2,x2-w/2,y2-w/2,
+                                      fill=bg,
+                                      outline=bg,
+                                      width=w,
+                                      tag=(recttag,'cellbg'+str(row)+str(col)))
+            self.lower(recttag)
+        return
+
+    def drawRowHeader(self):
+        """User has clicked to select a cell"""
+        if self.read_only == True:
+            pass
+        else:
+            self.delete('rowheader')
+            x_start=self.x_start
+            y_start=self.y_start
+            h=self.rowheight
+            rowpos=0
+            for row in self.rowrange:
+                x1,y1,x2,y2 = self.getCellCoords(rowpos,0)
+                self.create_rectangle(0,y1,x_start-2,y2,
+                                          fill='gray75',
+                                          outline='white',
+                                          width=1,
+                                          tag='rowheader')
+                self.create_text(x_start/2,y1+h/2,
+                                          text=row+1,
+                                          fill='black',
+                                          font=self.thefont,
+                                          tag='rowheader')
+                rowpos+=1
+        return
+
+    def drawSelectedCol(self, col=None, delete=1):
+        """Draw an outline rect fot the current column selection"""
+        if self.read_only == True:
+            pass
+        else:
+            if delete == 1:
+                self.delete('colrect')
+            if col == None:
+                col=self.currentcol
+            w=2
+            x1,y1,x2,y2 = self.getCellCoords(0,col)
+            y2 = self.rows * self.rowheight
+            rect = self.create_rectangle(x1+w/2,y1+w/2,x2,y2+w/2,
+                                         outline='blue',width=w,
+                                         tag='colrect')
+        return
+
+    def drawSelectedRect(self, row, col, color=None):
+        """User has clicked to select a cell"""
+        if self.read_only == True:
+            pass
+        else:
+            if col >= self.cols:
+                return
+            self.delete('currentrect')
+            bg = self.selectedcolor
+            if color == None:
+                color = 'gray25'
+            w=3
+            x1,y1,x2,y2 = self.getCellCoords(row,col)
+            rect = self.create_rectangle(x1+w/2,y1+w/2,x2-w/2,y2-w/2,
+                                         fill=bg,
+                                         outline=color,
+                                         width=w,
+                                         stipple='gray50',
+                                         tag='currentrect')
+            #self.lower('currentrect')
+            #raise text above all
+            self.lift('celltext'+str(col)+'_'+str(row))
+        return
+
+    def drawSelectedRow(self):
+        """Draw the highlight rect for the currently selected row"""
+        if self.read_only == True:
+            pass
+        else:
+            self.delete('rowrect')
+            row = self.currentrow
+            x1,y1,x2,y2 = self.getCellCoords(row,0)
+            x2 = self.tablewidth
+            rect = self.create_rectangle(x1,y1,x2,y2,
+                                         fill=self.rowselectedcolor,
+                                         outline=self.rowselectedcolor,
+                                         tag='rowrect')
+            self.lower('rowrect')
+            self.lower('fillrect')
+            self.tablerowheader.drawSelectedRows(self.currentrow)
+        return
 
     def importCSV(self, filename=None):
         """Import from csv file"""
@@ -272,10 +418,10 @@ class MyTableCanvas(TableCanvas):
     def new(self):
         """Clears all the data and makes a new table"""
         mpDlg = MultipleValDialog(title='Create new table',
-                                    initialvalues=(10, 4),
-                                    labels=('rows','columns'),
-                                    types=('int','int'),
-                                    parent=self.parentframe)
+                                  initialvalues=(10, 4),
+                                  labels=('rows','columns'),
+                                  types=('int','int'),
+                                  parent=self.parentframe)
 
         if mpDlg.result == True:
             rows = mpDlg.results[0]
