@@ -1,10 +1,7 @@
-import sys, os, datetime, csv, mysql.connector
-from tkinter import *
-from tkinter.ttk import *
-from tkinter.font import *
+import datetime, mysql.connector
 from tktbl import *
-from tkcalendar import *
-from scipy import *
+from tkcalendar import DateEntry
+#from scipy import *
 
 class LoadTable():
     def __init__( self, username, password ):
@@ -483,35 +480,36 @@ class TableWnd:
             self.stat_norm_check.config( text='подтверждена', foreground='green3' )
         else:
             self.stat_norm_check.config( text='опровергнута', foreground='red3' )
-    #сохранение отчета
-        def stat_report_on(self):
-            report = filedialog.asksaveasfilename( parent=self.master,
-                                                   initialdir=self.lastsave,
-                                                   title="Выберите имя файла",
-                                                   defaultextension='.txt',
-                                                   filetypes=[('текстовый файл', '*.txt')] )
-            self.lastsave = os.path.dirname( report )
-            if not report == '':
-                with open( 'C:\\temp\\out.csv', 'r' ) as to_save:
-                    rep_table = csv.DictReader( to_save, fieldnames=( 'Дата торг.', 'Код фьюч.', 'Дата погаш.', 'Тек.цена',
-                                                                      'Мин.цена', 'Макс.цена', 'Число прод.', 'К-р.пок-ль' ) )
-                    rep_format = ''
-                    row_id = 0
-                    for row in rep_table:
-                        row_id += 1
-                        rep_format = rep_format + '{:> 4}'.format( row_id ) + ' ' + \
-                                                  '{: <12}'.format( row['Дата торг.'] ) + \
-                                                  '{: <12}'.format( row['Код фьюч.'] ) + \
-                                                  '{: <12}'.format( row['Дата погаш.'] ) + \
-                                                  '{: <9}'.format( row['Тек.цена'] ) + \
-                                                  '{: <9}'.format( row['Мин.цена'] ) + \
-                                                  '{: <11}'.format( row['Макс.цена'] ) + \
-                                                  '{: <12}'.format( row['Число прод.'] ) + '\n'
-                                                  #'{: <9}'.format( row['К-р.пок-ль'] ) + '\n'
-                with open( report, 'w+' ) as saved_report:
-                    saved_report.write( rep_format )
-        self.stat_report = Button( self.stat_wnd, text='Создать отчет', width=30, command=stat_report_on )
+        self.stat_report = Button( self.stat_wnd, text='Создать отчет', width=30, command=self.stat_report_on )
         self.stat_report.place( x=717, y=340 )
+
+    #сохранение отчета со страницы статистических характеристик
+    def stat_report_on(self):
+        report = filedialog.asksaveasfilename( parent=self.master,
+                                               initialdir=self.lastsave,
+                                               title="Выберите имя файла",
+                                               defaultextension='.txt',
+                                               filetypes=[('текстовый файл', '*.txt')] )
+        self.lastsave = os.path.dirname( report )
+        if not report == '':
+            with open( 'C:\\temp\\out.csv', 'r' ) as to_save:
+                rep_table = csv.DictReader( to_save, fieldnames=( 'Дата торг.', 'Код фьюч.', 'Дата погаш.', 'Тек.цена',
+                                                                  'Мин.цена', 'Макс.цена', 'Число прод.', 'К-р.пок-ль' ) )
+                rep_format = ''
+                row_id = 0
+                for row in rep_table:
+                    row_id += 1
+                    rep_format = rep_format + '{:> 4}'.format( row_id ) + ' ' + \
+                                              '{: <12}'.format( row['Дата торг.'] ) + \
+                                              '{: <12}'.format( row['Код фьюч.'] ) + \
+                                              '{: <12}'.format( row['Дата погаш.'] ) + \
+                                              '{: <9}'.format( row['Тек.цена'] ) + \
+                                              '{: <9}'.format( row['Мин.цена'] ) + \
+                                              '{: <11}'.format( row['Макс.цена'] ) + \
+                                              '{: <12}'.format( row['Число прод.'] ) + '\n'
+                                              #'{: <9}'.format( row['К-р.пок-ль'] ) + '\n'
+            with open( report, 'w+' ) as saved_report:
+                saved_report.write( rep_format )
             
     #помощь
     def help_on(self):

@@ -1,4 +1,8 @@
-from tkintertable import *
+import os, sys, csv
+from tkinter import *
+from tkinter.ttk import *
+from tkintertable.Tables import *
+from tkintertable.TableModels import *
 
 #пользовательская модификация классов Tkintertable
 class MyTableModel(TableModel):
