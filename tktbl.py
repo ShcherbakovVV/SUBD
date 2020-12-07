@@ -197,6 +197,10 @@ class MyTableCanvas(TableCanvas):
                 self.redrawTable()
         return
 
+    def drawTooltip(self, row, col):
+        """Draw a tooltip showing contents of cell"""
+        pass
+
     def drawCellEntry(self, row, col, text=None):
         """When the user single/double clicks on a text/number cell, bring up entry window"""
 
