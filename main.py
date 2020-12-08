@@ -1,7 +1,7 @@
 import datetime, mysql.connector
 from tktbl import *
 from tkcalendar import DateEntry
-from scipy import stats.kstest
+from scipy.stats import chisquare
 
 class LoadTable():
     def __init__( self, username, password ):
@@ -19,26 +19,29 @@ class LoadTable():
         get_table._open_connection()
         load_table = get_table.cursor()
         if mode == 'init':
-            load_table.execute( 'SELECT * FROM f_zb ' 
-			        'INTO OUTFILE \'C:/temp/out.csv\' '
-			        'FIELDS ENCLOSED BY \'"\' TERMINATED BY \',\' '
+            load_table.execute( 'SELECT torg_date, name, day_end, quotation, min_quot, max_quot, num_contr, pokaz FROM f_zb_pok ' +
+                                'ORDER BY torg_date ' +
+			        'INTO OUTFILE \'C:/temp/out.csv\' ' +
+			        'FIELDS ENCLOSED BY \'"\' TERMINATED BY \',\' ' +
 			        'LINES TERMINATED BY \'\n\';' )
         elif mode == 'filtering':
             if f_name == '-не выбрано-':
-                load_table.execute( 'SELECT * FROM f_zb '
+                load_table.execute( 'SELECT torg_date, name, day_end, quotation, min_quot, max_quot, num_contr, pokaz FROM f_zb_pok '
                                     'WHERE torg_date BETWEEN CAST(\'' + l_torg + '\' AS DATE) ' +
                                                         'AND CAST(\'' + r_torg + '\' AS DATE) ' +
                                     'AND quotation BETWEEN ' + l_quot + ' AND ' + r_quot + ' ' +
+                                    'ORDER BY torg_date ' +
                                     'INTO OUTFILE \'C:/temp/out.csv\' ' +
                                     'FIELDS ENCLOSED BY \'"\' TERMINATED BY \',\' ' +
                                     'LINES TERMINATED BY \'\n\';' )
 
             else:
-                load_table.execute( 'SELECT * FROM f_zb '
+                load_table.execute( 'SELECT torg_date, name, day_end, quotation, min_quot, max_quot, num_contr, pokaz FROM f_zb_pok '
                                     'WHERE torg_date BETWEEN CAST(\'' + l_torg + '\' AS DATE) ' +
                                                         'AND CAST(\'' + r_torg + '\' AS DATE) ' +
                                     'AND name=\'' + f_name + '\' ' +
                                     'AND quotation BETWEEN ' + l_quot + ' AND ' + r_quot + ' ' +
+                                    'ORDER BY torg_date ' +
                                     'INTO OUTFILE \'C:/temp/out.csv\' ' +
                                     'FIELDS ENCLOSED BY \'"\' TERMINATED BY \',\' ' +
                                     'LINES TERMINATED BY \'\n\';' )
@@ -47,7 +50,7 @@ class LoadTable():
     #переименовать заголовки
         with open( 'C:\\temp\\out.csv', 'r+', newline='' ) as tablefile:
             add_headers = csv.reader( tablefile )
-            headers = 'Дата торг.,Код фьюч.,Дата погаш.,Тек.цена,Мин.цена,Макс.цена,Число прод.\n'
+            headers = 'Дата торг.,Код фьюч.,Дата погаш.,Тек.цена,Мин.цена,Макс.цена,Число прод.,Осн.показатель\n'
             for row in add_headers:
                 headers += ','.join(row) + '\n'
         with open( 'C:\\temp\\out.csv', 'w+', newline = '' ) as tablefile:
@@ -62,29 +65,16 @@ class TableWnd:
         self.lastsave = os.path.expanduser('~')
     #параметры окна
         self.table_wnd = Toplevel( self.master )
-        self.table_wnd.geometry( '1006x445+170+130' )
+        self.table_wnd.geometry( '1173x448+83+130' )
         self.table_wnd.title( 'Фьючерсы' )
         self.table_wnd.resizable( width=False, height=False )
-        self.tableframe = Frame( self.table_wnd, width=700, height=445 )
+        self.tableframe = Frame( self.table_wnd, width=870, height=445 )
         self.tableframe.place( x=10, y=10 )
         self.get_filters_values()
-    #окно "Основной показатель"
-        self.pok_wnd = Toplevel(self.master)
-        self.pok_wnd.geometry('455x445+200+170')
-        self.pok_wnd.title('Основной показатель')
-        self.pok_wnd.resizable( width=False, height=False )
-        self.pok_frame = Frame( self.pok_wnd, width=435, height=445 )
-        self.pok_frame.place( x=10, y=10 )
-        self.pok_wnd.withdraw()
-        def close_pok():
-            self.pok_wnd.withdraw()
-            self.master.grab_set()                #главное окно неактивно
-            self.master.focus_set()
-        self.pok_wnd.protocol( 'WM_DELETE_WINDOW', close_pok )
     #работа с таблицей
-        self.tablemodel = MyTableModel( rows=2000, columns=7 )
+        self.tablemodel = MyTableModel( rows=2000, columns=8 )
         self.table = MyTableCanvas( self.tableframe, self.tablemodel,
-                                    cols=7, height=395, width=700,
+                                    cols=8, height=395, width=870,
                                     cellbackgr='white', thefont=( 'TkDefault', 10 ),
                                     rowselectedcolor='blue', read_only=False )
         self.main_table = LoadTable( self.username, self.password )
@@ -95,7 +85,6 @@ class TableWnd:
     #главное меню
         self.main_menu = Menu( self.table_wnd )
         self.table_wnd.config( menu=self.main_menu )
-        self.main_menu.add_command( label='Основной показатель', command=self.pok_on )
         self.main_menu.add_command( label='Статистические характеристики', command=self.stat_on )
         self.main_menu.add_command( label='Помощь', command=self.help_on )
     #фрейм "Фильтрация"
@@ -106,7 +95,7 @@ class TableWnd:
                                          labelwidget=self.filters_label,
                                          labelanchor='n',
                                          text='Фильтрация' )
-        self.filters_frame.place( x=785, y=10 )
+        self.filters_frame.place( x=955, y=10 )
     #второй фрейм
         self.lower_label = Label( self.table_wnd, text='Таблица', font='TkDefaultFont 12 bold', width=8 )
         self.lower_frame = LabelFrame( self.table_wnd,
@@ -115,16 +104,16 @@ class TableWnd:
                                        labelwidget=self.lower_label,
                                        labelanchor='n',
                                        text='Таблица' )
-        self.lower_frame.place( x=785, y=280 )
+        self.lower_frame.place( x=955, y=280 )
     #надпись "Диапазон по дате торгов"
         self.torg_date_label = Label( self.table_wnd, text='Диапазон по дате торгов', font='TkDefaultFont 9 underline', width=24 )
-        self.torg_date_label.place( x=803, y=40 )
+        self.torg_date_label.place( x=973, y=40 )
     #надпись "По имени фьючерса"
         self.name_label = Label( self.table_wnd, text='По имени фьючерса', font='TkDefaultFon, 9 underline', width=24 )
-        self.name_label.place( x=803, y=92 )
+        self.name_label.place( x=973, y=92 )
     #надпись "Диапазон по котировке"
         self.quot_label = Label( self.table_wnd, text='Диапазон по тек. цене', font='TkDefaultFont 9 underline', width=24 )
-        self.quot_label.place( x=803, y=144 )
+        self.quot_label.place( x=973, y=144 )
     #левая граница даты
         self.torg_date_from = DateEntry( self.table_wnd, width=9, font='TkDefaultFont 9 bold', locale='ru_RU',
                                          firstweekday='monday', date_pattern='y-mm-dd', mindate=self.mindate,
@@ -138,7 +127,7 @@ class TableWnd:
                                                       othermonthforeground='grey25',
                                                       othermonthwebackground='firebrick4',
                                                       othermonthweforeground='black' )
-        self.torg_date_from.place( x=803, y=62 )
+        self.torg_date_from.place( x=973, y=62 )
     #правая граница даты
         self.torg_date_to = DateEntry( self.table_wnd, width=9, font='TkDefaultFont 9 bold', locale='ru_RU',
                                        firstweekday='monday', date_pattern='y-mm-dd', mindate=self.mindate,
@@ -151,7 +140,7 @@ class TableWnd:
                                                     othermonthforeground='grey25',
                                                     othermonthwebackground='firebrick4',
                                                     othermonthweforeground='black' )
-        self.torg_date_to.place( x=891, y=62 )
+        self.torg_date_to.place( x=1061, y=62 )
     #ограничения по выбору дат в календарях, если уже выбрана она из дат
         self.torg_date_from.bind( '<<DateEntrySelected>>', self.from_date_sel )
         self.torg_date_to.bind( '<<DateEntrySelected>>', self.to_date_sel )
@@ -159,32 +148,30 @@ class TableWnd:
         self.name_menu = Combobox( self.table_wnd, state="readonly", font='TkDefaultFont 10 bold' )
         self.name_menu['values'] = tuple( self.fut_names )
         self.name_menu.current(0)
-        self.name_menu.place( x=803, y=114, width=176 )
+        self.name_menu.place( x=973, y=114, width=176 )
     #текстовое поле для ввода левой границы котировки
         self.quot_from = Entry( self.table_wnd, width=12, style='entry_style.TEntry', font='TkDefaultFont 10 bold' )
         self.quot_from.insert( 0, self.filterquot[0] )
-        self.quot_from.place( x=803, y=166 )
+        self.quot_from.place( x=973, y=166 )
     #текстовое поле для ввода правой границы котировки
         self.quot_to = Entry( self.table_wnd, width=12, style='entry_style.TEntry', font='TkDefaultFont 10 bold' )
         self.quot_to.insert( 0, self.filterquot[1] )
-        self.quot_to.place( x=891, y=166 )
+        self.quot_to.place( x=1061, y=166 )
     #кнопка "Применить фильтры"
         self.append = Button( self.table_wnd, text='Применить фильтры', width=22, command=self.append_on )
-        self.append.place( x=818, y=210 )
+        self.append.place( x=988, y=210 )
     #кнопка "Сбросить фильтры"
         self.clear = Button( self.table_wnd, text='Сбросить фильтры', width=22, command=self.clear_on )
-        self.clear.place( x=818, y=240 )
+        self.clear.place( x=988, y=240 )
     #кнопка "Сохранить изменения"
         self.save = Button( self.table_wnd, text='Сохранить изменения', width=22, command=self.save_on )
-        self.save.place( x=818, y=310 )
+        self.save.place( x=988, y=310 )
     #кнопка "Откатить изменения"
         self.undo = Button( self.table_wnd, text='Откатить изменения', width=22, command=self.undo_on )
-        self.undo.place( x=818, y=340 )
+        self.undo.place( x=988, y=340 )
     #кнопка "Создать отчет"
         self.report = Button( self.table_wnd, text='Создать отчет', width=22, command=self.report_on )
-        self.report.place( x=818, y=398 )
-    #применение фильтра при запуске для основного показателя
-        self.append_on()
+        self.report.place( x=988, y=398 )
     #обработка закрытия окна
         self.table_wnd.protocol( 'WM_DELETE_WINDOW', self.table_wnd_close )
 
@@ -200,9 +187,9 @@ class TableWnd:
                                               password = self.password )
         load_filter = get_filter.cursor()
         load_filter.execute( 'SELECT MIN(torg_date), MIN(quotation), MAX(torg_date), MAX(quotation) '+
-                             'FROM f_zb INTO OUTFILE \'C:/temp/maxmin.csv\' '+
+                             'FROM f_zb_pok INTO OUTFILE \'C:/temp/maxmin.csv\' '+
                              'FIELDS ENCLOSED BY \'"\' TERMINATED BY \'\n\' LINES TERMINATED BY \'\n\';' )
-        load_filter.execute( 'SELECT DISTINCT name FROM f_zb INTO OUTFILE \'C:/temp/fnames.csv\' '+
+        load_filter.execute( 'SELECT DISTINCT name FROM f_zb_pok INTO OUTFILE \'C:/temp/fnames.csv\' '+
                              'FIELDS ENCLOSED BY \'"\' TERMINATED BY \'\n\' LINES TERMINATED BY \'\n\';' )
         load_filter.close()
         get_filter.close()
@@ -260,78 +247,6 @@ class TableWnd:
             self.table.adjustColumnWidths()
             self.table.importCSV( 'C:\\temp\\out.csv' )
             self.table.show()
-    #основные показатели
-        #загрузка требуемой таблицы
-        if os.path.exists('C:\\temp\\pok.csv'):
-            os.remove('C:\\temp\\pok.csv')
-        get_pok = mysql.connector.connect( host = 'localhost',
-                                           database = 'fut_cen_bum',
-                                           user = self.username,
-                                           password = self.password )
-        get_pok._open_connection()
-        load_pok = get_pok.cursor()
-        if self.name_menu.get() == '-не выбрано-':
-            load_pok.execute( 'SELECT torg_date, f_zb.name, quotation, exec_date, day_end FROM f_zb, zb ' +
-                              'WHERE f_zb.name=zb.name ' +
-                              'AND torg_date BETWEEN CAST(\'' + self.torg_date_from.get_date().strftime('%Y-%m-%d') + '\' AS DATE) ' +
-                                                'AND CAST(\'' + self.torg_date_to.get_date().strftime('%Y-%m-%d') + '\' AS DATE) ' +
-                              'AND quotation BETWEEN ' + self.quot_from.get() + ' AND ' + self.quot_to.get() + ' ' +
-                              'ORDER BY f_zb.name, torg_date ' +
-                              'INTO OUTFILE \'C:/temp/pok.csv\' ' +
-                              'FIELDS ENCLOSED BY \'"\' TERMINATED BY \',\' ' +
-                              'LINES TERMINATED BY \'\n\';' )
-
-        else:
-            load_pok.execute( 'SELECT torg_date, f_zb.name, quotation, exec_date, day_end FROM f_zb, zb ' +
-                              'WHERE f_zb.name=zb.name ' +
-                              'AND torg_date BETWEEN CAST(\'' + self.torg_date_from.get_date().strftime('%Y-%m-%d') + '\' AS DATE) ' +
-                                                'AND CAST(\'' + self.torg_date_to.get_date().strftime('%Y-%m-%d') + '\' AS DATE) ' +
-                              'AND f_zb.name=\'' + self.name_menu.get() + '\' ' +
-                              'AND quotation BETWEEN ' + self.quot_from.get() + ' AND ' + self.quot_to.get() + ' ' +
-                              'ORDER BY f_zb.name, torg_date ' +
-                              'INTO OUTFILE \'C:/temp/pok.csv\' ' +
-                              'FIELDS ENCLOSED BY \'"\' TERMINATED BY \',\' ' +
-                              'LINES TERMINATED BY \'\n\';' )
-        load_pok.close()
-        get_pok.close()
-        global ji
-    #функция для расчета rk
-        def rk( F, Tu, Tn ):
-            d1 = time.strptime( Tu, "%Y-%m-%d" )
-            d2 = time.strptime( Tn, "%Y-%m-%d" )
-            if F == 0:
-                return 1
-            else:
-                return (math.log(F/100))/(d2.tm_yday - d1.tm_yday)
-    #загрузка выведенной таблицы
-        pr_sps = []
-        with open( 'C:\\temp\\pok.csv', 'r+', newline='' ) as tablefile:
-            read_pok = csv.reader( tablefile )
-            for row in read_pok:
-                row = str(row)
-                pr_sps += [ row[1:len(row)-1] ]
-        name_zap = '00000-0000'
-        i = 0
-        with open( 'C:\\temp\\pok2.csv', 'w+', newline='' ) as tablefile:
-            tablefile.write( 'Дата торг.,Код фьюч.,Осн.показатель\n' )
-            while i < len( pr_sps ):
-                dan_tek = pr_sps[i].split('\'')
-                if name_zap != dan_tek[3]:
-                    i = i + 2
-                    name_zap = dan_tek[3]
-                else:
-                    dan_tek_2 = pr_sps[i-2].split('\'')
-                    pokazat = math.log( abs(rk( float(dan_tek[5]), dan_tek[7], dan_tek[9] )/rk( float(dan_tek_2[5]), dan_tek_2[7], dan_tek_2[9] )))
-                    i += 1
-                    tablefile.write( '"' + dan_tek[1] + '","' + name_zap + '","' + str(pokazat) + '"\n' )
-        self.pok_tblmodel = MyTableModel( rows=2000, columns=3 )
-        self.pok_table = MyTableCanvas( self.pok_frame, self.pok_tblmodel,
-                                        cols=3, height=395, width=368,
-                                        cellbackgr='white', thefont=( 'TkDefault', 10 ),
-                                        rowselectedcolor='blue', read_only=True )
-        self.pok_table.importCSV( 'C:\\temp\\pok2.csv' )
-        self.pok_table.adjustColumnWidths()
-        self.pok_table.show()
 
     #проверка quotation
     def quot_check( self, quot ):
@@ -377,7 +292,7 @@ class TableWnd:
                                                        password = self.password )
                     edit_db._open_connection()
                     edit_db_cursor = edit_db.cursor()
-                    edit_db_cursor.execute( 'DELETE FROM f_zb WHERE (' +
+                    edit_db_cursor.execute( 'DELETE FROM f_zb_pok WHERE (' +
                                             'torg_date=CAST(\'' + str(delrow[0]) + '\' AS DATE) AND ' +
                                             'name=\''+str(delrow[1])+'\' AND '+
                                             'day_end=CAST(\'' + str(delrow[2]) + '\' AS DATE) AND ' +
@@ -470,13 +385,13 @@ class TableWnd:
                 row_id = 0
                 for row in rep_table:
                     row_id += 1
-                    rep_format = rep_format + '{: <12}'.format( row['Дата торг.'] ) + \
-                                              '{: <12}'.format( row['Код фьюч.'] ) + \
-                                              '{: <12}'.format( row['Дата погаш.'] ) + \
-                                              '{: <9}'.format( row['Тек.цена'] ) + \
-                                              '{: <9}'.format( row['Мин.цена'] ) + \
-                                              '{: <11}'.format( row['Макс.цена'] ) + \
-                                              '{: <12}'.format( row['Число прод.'] ) + '\n'
+                    rep_format = rep_format + '{: <14}'.format( row['Дата торг.'] ) + \
+                                              '{: <14}'.format( row['Код фьюч.'] ) + \
+                                              '{: <14}'.format( row['Дата погаш.'] ) + \
+                                              '{: <12}'.format( row['Тек.цена'] ) + \
+                                              '{: <12}'.format( row['Мин.цена'] ) + \
+                                              '{: <14}'.format( row['Макс.цена'] ) + \
+                                              '{: <14}'.format( row['Число прод.'] ) + '\n'
             with open( report, 'w+' ) as saved_report:
                 saved_report.write( rep_format )
 
@@ -492,35 +407,28 @@ class TableWnd:
         else:
             self.master.destroy()
             
-    #основной показатель
-    def pok_on(self):
-        self.pok_wnd.deiconify()
-        self.pok_wnd.grab_set()                #главное окно неактивно
-        self.pok_wnd.focus_set()
-        
     #статистические характеристики
     def stat_on(self):
         self.stat_wnd = Toplevel(self.master)
-        self.stat_wnd.geometry('954x400+200+170')
+        self.stat_wnd.geometry('854x400+250+170')
         self.stat_wnd.title('Расчет основных статистических характеристик')
         self.stat_wnd.resizable( width=False, height=False )
         self.stat_wnd.grab_set()                #главное окно неактивно
         self.stat_wnd.focus_set()
-        self.stat_frame = Frame( self.stat_wnd, width=600, height=348 )
+        self.stat_frame = Frame( self.stat_wnd, width=500, height=348 )
         self.stat_frame.place( x=10, y=10 )
+    #построение таблицы
         self.stat_tblmodel = MyTableModel( rows=2000, columns=5 )
         self.stat_table = MyTableCanvas( self.stat_frame, self.stat_tblmodel,
-                                         cols=5, height=348, width=600,
+                                         cols=5, height=348, width=500,
                                          cellbackgr='white', thefont=( 'TkDefault', 10 ),
                                          rowselectedcolor='blue', read_only=True )
-        self.stat_table.adjustColumnWidths()
-        self.stat_table.show()
     #второй фрейм
         self.stat_lower_frame = LabelFrame( self.stat_wnd, width=261, height=387 )
-        self.stat_lower_frame.place( x=682, y=3 )
+        self.stat_lower_frame.place( x=582, y=3 )
     #надпись "Предыстория торгов:"
         self.stat_date_label = Label( self.stat_wnd, text='Предыстория торгов:', font='Tkdefault 9 underline' )
-        self.stat_date_label.place( x=700, y=20 )
+        self.stat_date_label.place( x=600, y=20 )
     #левое поле ввода даты
         self.stat_date_min = DateEntry( self.stat_wnd, width=9, font='TkDefaultFont 9 bold', locale='ru_RU',
                                         firstweekday='monday', date_pattern='y-mm-dd', mindate=self.mindate,
@@ -534,7 +442,7 @@ class TableWnd:
                                                      othermonthforeground='grey25',
                                                      othermonthwebackground='firebrick4',
                                                      othermonthweforeground='black' )
-        self.stat_date_min.place( x=700, y=42 )
+        self.stat_date_min.place( x=611, y=42 )
     #поле ввода даты t
         self.stat_date_t = DateEntry( self.stat_wnd, width=9, font='TkDefaultFont 9 bold', locale='ru_RU',
                                       firstweekday='monday', date_pattern='y-mm-dd', mindate=self.mindate,
@@ -547,34 +455,110 @@ class TableWnd:
                                                    othermonthforeground='grey25',
                                                    othermonthwebackground='firebrick4',
                                                    othermonthweforeground='black' )
-        self.stat_date_t.place( x=788, y=42 )
+        self.stat_date_t.place( x=730, y=42 )
+    #задание интервала дат
+        self.stat_set_dates()
+    #кнопка "Задать предысторию"
+        self.stat_date_but = Button( self.stat_wnd, text='Задать предысторию', width=22, command=self.stat_refresh )
+        self.stat_date_but.place( x=642, y=70 )
     #надпись "Фьючерс с наиб. предысторией"
         self.stat_fut_label = Label( self.stat_wnd,
                                      text='Фьючерс с наибольшей предысторией:',
                                      font='Tkdefault 9 underline' )
-        self.stat_fut_label.place( x=700, y=72 )
+        self.stat_fut_label.place( x=600, y=106 )
     #надпись с именем фьючерса с наибольшей предисторией
         self.stat_fut_name = Label( self.stat_wnd,
                                     font='TkDefaultFont 12 bold',
                                     foreground='magenta3' )
-        self.stat_fut_name.place( x=700, y=94 )
-        self.stat_fut_name.config( text='фьючерс' )
+        self.stat_fut_name.place( x=600, y=128 )
     #надпись "Нормальность..."
         self.stat_norm_label = Label( self.stat_wnd,
                                       text='Нормальность закона распределения\n'+
                                            'контролируемого показателя:',
                                       font='Tkdefault 9 underline' )
-        self.stat_norm_label.place( x=700, y=124 )
+        self.stat_norm_label.place( x=600, y=152 )
     #надпись с итогом проверки
         self.stat_norm_check = Label( self.stat_wnd, font='Tkdefault 12 bold' )
-        self.stat_norm_check.place( x=700, y=164 )
-        if True:
+        self.stat_norm_check.place( x=600, y=192 )
+    #надпись "Значение довер. вероятности"
+        self.stat_prob = Label( self.stat_wnd,
+                                text='Значение довер. вероятности p = 0.05',
+                                font='Tkdefault 9 underline' )
+        self.stat_prob.place( x=600, y=220 )
+    #надпись "Значение Хи-квадрат"
+        self.stat_chi_label = Label( self.stat_wnd,
+                                     text='Значение Хи-квадрат:',
+                                     font='Tkdefault 9 underline' )
+        self.stat_chi_label.place( x=600, y=240 )
+    #значение Хи-квадрат
+        self.stat_chi_value = Label( self.stat_wnd,
+                                     font='Tkdefault 12 bold',
+                                     foreground='blue2' )
+        self.stat_chi_value.place( x=730, y=240 )
+    #проверка нормальности
+        self.stat_normality()
+    #создание отчета
+        self.stat_report = Button( self.stat_wnd, text='Создать отчет', width=30, command=self.stat_report_on )
+        self.stat_report.place( x=617, y=340 )
+
+    #обновление информации
+    def stat_refresh(self):
+        self.stat_set_dates()
+        self.stat_normality()
+        
+    #задание диапазона дат
+    def stat_set_dates(self):
+        if os.path.exists('C:\\temp\\stat.csv'):
+            os.remove('C:\\temp\\stat.csv')
+        get_stat = mysql.connector.connect( host = 'localhost',
+                                            database = 'fut_cen_bum',
+                                            user = self.username,
+                                            password = self.password )
+        load_stat = get_stat.cursor()
+        load_stat.execute( 'CALL stat(\'' + self.stat_date_min.get_date().strftime( "%Y-%m-%d" ) +
+                                 '\', \'' + self.stat_date_t.get_date().strftime( "%Y-%m-%d" ) + '\');' )
+        load_stat.close()
+        get_stat.close()
+    #переименовать заголовки
+        with open( 'C:\\temp\\stat.csv', 'r+', newline='' ) as statfile:
+            add_stat_headers = csv.reader( statfile )
+            stat_headers = 'Код фьюч.,Мат.ожид.,Сркв.откл.,Минимум,Максимум\n'
+            for row in add_stat_headers:
+                stat_headers += ','.join(row) + '\n'
+        with open( 'C:\\temp\\stat.csv', 'w+', newline = '' ) as statfile:
+            statfile.write( stat_headers )
+        self.stat_table.importCSV( 'C:\\temp\\stat.csv' )
+        self.stat_table.adjustColumnWidths()
+        self.stat_table.show()
+
+    #проверка на нормальность
+    def stat_normality(self):
+        if os.path.exists('C:\\temp\\norm.csv'):
+            os.remove('C:\\temp\\norm.csv')
+        get_norm = mysql.connector.connect( host = 'localhost',
+                                            database = 'fut_cen_bum',
+                                            user = self.username,
+                                            password = self.password )
+        load_norm = get_norm.cursor()
+        load_norm.execute( 'CALL norm(\'' + self.stat_date_min.get_date().strftime( "%Y-%m-%d" ) +
+                                 '\', \'' + self.stat_date_t.get_date().strftime( "%Y-%m-%d" ) + '\');' )
+        load_norm.close()
+        get_norm.close()        
+        with open( 'C:\\temp\\norm.csv', 'r', newline='' ) as normfile:
+            norm_read = csv.reader( normfile, quotechar='"' )
+            norm_vyborka = []
+            for row in norm_read:
+                max_fut = row[0]
+                norm_vyborka.append( float(row[1]) )
+    #проверка нормальности
+        self.chi, self.p = chisquare( norm_vyborka )
+        if self.p > 0.05:
             self.stat_norm_check.config( text='подтверждена', foreground='green3' )
         else:
             self.stat_norm_check.config( text='опровергнута', foreground='red3' )
-        self.stat_report = Button( self.stat_wnd, text='Создать отчет', width=30, command=self.stat_report_on )
-        self.stat_report.place( x=717, y=340 )
-
+        self.stat_fut_name.config( text=max_fut )
+        self.stat_chi_value.config( text=round(self.chi, 3) )
+        
     #сохранение отчета со страницы статистических характеристик
     def stat_report_on(self):
         report = filedialog.asksaveasfilename( parent=self.master,
@@ -584,21 +568,18 @@ class TableWnd:
                                                filetypes=[('текстовый файл', '*.txt')] )
         self.lastsave = os.path.dirname( report )
         if not report == '':
-            with open( 'C:\\temp\\out.csv', 'r' ) as to_save:
-                rep_table = csv.DictReader( to_save, fieldnames=( 'Дата торг.', 'Код фьюч.', 'Дата погаш.', 'Тек.цена',
-                                                                  'Мин.цена', 'Макс.цена', 'Число прод.', 'К-р.пок-ль' ) )
+            with open( 'C:\\temp\\stat.csv', 'r' ) as to_save_stat:
+                rep_table = csv.DictReader( to_save_stat,
+                                            fieldnames=( 'Код фьюч.', 'Мат.ожид.', 'Сркв.откл.', 'Минимум', 'Максимум' ) )
                 rep_format = ''
                 row_id = 0
                 for row in rep_table:
                     row_id += 1
-                    rep_format = rep_format + '{:> 4}'.format( row_id ) + ' ' + \
-                                              '{: <12}'.format( row['Дата торг.'] ) + \
-                                              '{: <12}'.format( row['Код фьюч.'] ) + \
-                                              '{: <12}'.format( row['Дата погаш.'] ) + \
-                                              '{: <9}'.format( row['Тек.цена'] ) + \
-                                              '{: <9}'.format( row['Мин.цена'] ) + \
-                                              '{: <11}'.format( row['Макс.цена'] ) + \
-                                              '{: <12}'.format( row['Число прод.'] ) + '\n'
+                    rep_format = rep_format + '{: <14}'.format( row['Код фьюч.'] ) + \
+                                              '{: <14}'.format( row['Мат.ожид.'] ) + \
+                                              '{: <14}'.format( row['Сркв.откл.'] ) + \
+                                              '{: <14}'.format( row['Минимум'] ) + \
+                                              '{: <14}'.format( row['Максимум'] ) + '\n'
             with open( report, 'w+' ) as saved_report:
                 saved_report.write( rep_format )
             

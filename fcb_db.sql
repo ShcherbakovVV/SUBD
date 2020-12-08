@@ -1,13 +1,13 @@
--- MySQL dump 10.13  Distrib 8.0.21, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.22, for Win64 (x86_64)
 --
 -- Host: localhost    Database: fut_cen_bum
 -- ------------------------------------------------------
--- Server version	8.0.21
+-- Server version	8.0.22
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!50503 SET NAMES utf8 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -73,6 +73,102 @@ LOCK TABLES `zb` WRITE;
 INSERT INTO `zb` VALUES ('21057-1602','SU21057RMFS','1996-02-16'),('21058-1503','SU21058RMFS','1996-03-15'),('21058-2903','SU21058RMFS','1996-03-29'),('22019-0904','SU22019RMFS','1996-04-09'),('22020-1503','SU22020RMFS','1996-03-15'),('22020-1602','SU22020RMFS','1996-02-16'),('22020-1904','SU22020RMFS','1996-04-19'),('22021-2903','SU22021RMFS','1996-03-29'),('22023-1203','SU22023RMFS','1996-03-12'),('22023-1705','SU22023RMFS','1996-05-17'),('22024-0207','SU22024RMFS','1996-07-02'),('22024-0406','SU22024RMFS','1996-06-04'),('22024-0705','SU22024RMFS','1996-05-07'),('22024-0904','SU22024RMFS','1996-04-09'),('22024-0907','SU22024RMFS','1996-07-09'),('22024-1406','SU22024RMFS','1996-06-14'),('22024-1607','SU22024RMFS','1996-07-16'),('22024-2105','SU22024RMFS','1996-05-21'),('22024-2304','SU22024RMFS','1996-04-23'),('22024-2506','SU22024RMFS','1996-06-25'),('22024-3004','SU22024RMFS','1996-04-30'),('22027-0207','SU22027RMFS','1996-07-02'),('22027-1607','SU22027RMFS','1996-07-16'),('22028-1907','SU22028RMFS','1996-07-19'),('22028-3105','SU22028RMFS','1996-05-31'),('22032-0608','SU22032RMFS','1996-08-06'),('22032-1607','SU22032RMFS','1996-07-16'),('22034-2008','SU22034RMFS','1996-08-20'),('22036-1009','SU22036RMFS','1996-09-10'),('22036-1607','SU22036RMFS','1996-07-16'),('22036-1709','SU22036RMFS','1996-09-17'),('22036-2708','SU22036RMFS','1996-08-27'),('22037-0309','SU22037RMFS','1996-09-03'),('22038-0110','SU22038RMFS','1996-10-01'),('22039-0608','SU22039RMFS','1996-08-06'),('22039-0810','SU22039RMFS','1996-10-08'),('22039-1510','SU22039RMFS','1996-10-15'),('22040-2910','SU22040RMFS','1996-10-29'),('22043-1911','SU22043RMFS','1996-11-19'),('22044-0312','SU22044RMFS','1996-12-03'),('22044-0511','SU22044RMFS','1996-11-05'),('22045-1911','SU22045RMFS','1996-11-19'),('22047-0312','SU22047RMFS','1996-12-03'),('22047-0511','SU22047RMFS','1996-11-05'),('22049-1911','SU22049RMFS','1996-11-19'),('22051-2412','SU22051RMFS','1996-12-24'),('22052-1401','SU22052RMFS','1997-01-14');
 /*!40000 ALTER TABLE `zb` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Dumping routines for database 'fut_cen_bum'
+--
+/*!50003 DROP PROCEDURE IF EXISTS `norm` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `norm`(min_date date, t_date date)
+BEGIN
+	declare max_kol int;
+	declare name_fuch char(12);
+	DROP TABLE IF EXISTS `dop_e`;
+	DROP TABLE IF EXISTS `kol_zapis`;
+	DROP TABLE IF EXISTS `vivod_for_e`;
+	CREATE TABLE dop_e SELECT name, pokaz FROM f_zb_pok where torg_date between min_date and t_date;
+	CREATE TABLE kol_zapis SELECT name, COUNT(*) as kol FROM dop_e GROUP BY name;
+	SET max_kol = (SELECT max(kol) FROM kol_zapis);
+	SET name_fuch = (SELECT name FROM kol_zapis WHERE kol = max_kol LIMIT 1);
+	CREATE TABLE vivod_for_e SELECT name, pokaz FROM dop_e WHERE name = name_fuch;
+	SELECT * FROM vivod_for_e INTO OUTFILE 'C:/temp/norm.csv' FIELDS ENCLOSED BY '"' TERMINATED BY ',' LINES TERMINATED BY '\n';
+	DROP TABLE IF EXISTS `dop_e`;
+	DROP TABLE IF EXISTS `kol_zapis`;
+	DROP TABLE IF EXISTS `vivod_for_e`;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `stat` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `stat`(min_date date, t_date date)
+BEGIN	
+	declare name_tek char(12);
+	declare i int;
+	declare n_field1 int;
+	DROP TABLE IF EXISTS `stat_har`;
+	DROP TABLE IF EXISTS `spis_zad_fuch`;
+	DROP TABLE IF EXISTS `spis_fuch`;
+	DROP TABLE IF EXISTS `dop_table`;
+	DROP TABLE IF EXISTS `dop`;
+
+	create table if not exists stat_har(
+		name text not null,
+		mean double not null,
+		st_dev double not null,
+		min double not null,
+		max double not null
+	); #таблица для загрузки статических показателей
+	
+	SET i=1;
+	CREATE TABLE dop SELECT torg_date, name, pokaz FROM f_zb_pok where torg_date between min_date and t_date;
+	SET @row_number = 0;
+	CREATE TABLE spis_fuch SELECT DISTINCT name FROM dop;
+	create table spis_zad_fuch select (@row_number:=@row_number + 1) AS num, name from spis_fuch;
+	set n_field1 = (select count(*) from spis_zad_fuch);
+	CREATE TABLE dop_table SELECT torg_date, name, pokaz FROM dop where name between (select min(name) from spis_zad_fuch) and (select max(name) from spis_zad_fuch);
+	loop1: LOOP
+		SET name_tek=(select name FROM spis_zad_fuch WHERE num=i);
+		insert stat_har(name, mean, st_dev, min, max) values ( name_tek, 
+															   round((select avg(pokaz) from dop_table where name=name_tek),6), 
+															   round((select std(pokaz) from dop_table where name=name_tek),6), 
+                                                               round((select min(pokaz) from dop_table where name=name_tek),6), 
+                                                               round((select max(pokaz) from dop_table where name=name_tek),6) );
+		SET i = i + 1;
+		IF i = n_field1 + 1 THEN
+			LEAVE loop1;
+		END IF;
+	END LOOP loop1;
+	SELECT * FROM stat_har INTO OUTFILE 'C:/temp/stat.csv' FIELDS ENCLOSED BY '"' TERMINATED BY ',' LINES TERMINATED BY '\n';
+	DROP TABLE IF EXISTS `stat_har`;
+	DROP TABLE IF EXISTS `spis_zad_fuch`;
+	DROP TABLE IF EXISTS `spis_fuch`;
+	DROP TABLE IF EXISTS `dop_table`;
+	DROP TABLE IF EXISTS `dop`;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -83,4 +179,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-11-09 22:53:22
+-- Dump completed on 2020-12-08 11:34:45

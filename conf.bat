@@ -19,17 +19,23 @@ copy tkintertable\Dialogs.py %pp%Lib\site-packages\tkintertable\Dialogs.py > nul
 copy tkintertable\Tables.py %pp%Lib\site-packages\tkintertable\Tables.py > nul
 del py.txt > nul
 echo Библиотеки успешно установлены!
+rem перезапускаем сервер 
+net stop MYSQL80 > nul 
+net start MYSQL80 > nul
 echo Устанавливается база данных...
 if not exist "C:\temp\" mkdir C:\temp
 :enter_login_pass
     set /p login=Введите логин от сервера MySQL: 
     set /p pass=Введите пароль от сервера MySQL: 
-    set PATH=%PATH%;C:\Program Files\MySQL\MySQL Server 8.0\bin; > nul 
-    mysql --user="%login%" --password="%pass%" < fcb_db.sql > nul
+    "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql" --user="%login%" --password="%pass%" < fcb_db.sql > nul 
 if ERRORLEVEL 1 (echo Неправильный логин или пароль! 
                  goto :enter_login_pass)
+echo %login% > logpswd.txt
+echo %pass% >> logpswd.txt
+pythonw conf.py > nul
 echo База данных успешно установлена!
 echo ----------------------------------------------------------------------------------
 echo ------------------------------ Настройка завершена! ------------------------------
 echo ----------------------------------------------------------------------------------
+del logpswd.txt > nul
 pause
