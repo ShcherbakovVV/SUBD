@@ -10,6 +10,7 @@ pip -q --no-color --disable-pip-version-check install mysql-connector-python > n
 pip -q --no-color --disable-pip-version-check install scipy > nul
 pip -q --no-color --disable-pip-version-check install tkcalendar > nul
 pip -q --no-color --disable-pip-version-check install tkintertable > nul
+pip -q --no-color --disable-pip-version-check install xlsxwriter > nul
 rem получаем путь к папке с питоном, чтобы скопировать скорректированные библиотеки
 set copycmd=/y 
 where python > py.txt 
