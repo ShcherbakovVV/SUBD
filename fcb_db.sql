@@ -109,6 +109,82 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `sost` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sost`(min_date date, t_date date)
+BEGIN	
+	declare max_kol int;
+	declare name_fuch char(12);
+	declare i int;
+	declare z1 double;
+	declare x_mean double;
+	declare x_st_dev double;
+	declare x_d double;
+	declare z double;
+	declare x_t double;
+	declare Pi double;
+	declare chisl double;
+	declare znam int;
+	declare tek_date date;
+	declare P double;
+	declare res char(4);
+	DROP TABLE IF EXISTS `dop_ge`;
+	DROP TABLE IF EXISTS `kol_zap`;
+	DROP TABLE IF EXISTS `pokazat_10`;
+	
+	CREATE TABLE dop_ge SELECT torg_date, name, pokaz FROM f_zb_pok where torg_date between min_date and t_date;
+	CREATE TABLE kol_zap SELECT name, COUNT(*) as kol FROM dop_ge GROUP BY name;
+	SET max_kol = (SELECT max(kol) FROM kol_zap);
+	SET name_fuch = (SELECT name FROM kol_zap WHERE kol = max_kol LIMIT 1);
+	IF max_kol > 10 THEN 
+		SET max_kol = 10;
+	END IF;
+	SET @row_number = 0;
+	CREATE TABLE pokazat_10 SELECT (@row_number:=@row_number + 1) AS num, torg_date, pokaz FROM dop_ge WHERE name = name_fuch ORDER BY torg_date DESC LIMIT 1, 10;
+	SET i = max_kol;
+	SET chisl = 0;
+	SET znam = 0;
+	loop1: LOOP
+		SET x_mean =(SELECT avg(pokaz) FROM pokazat_10 WHERE num between i and max_kol);
+		SET x_st_dev = (SELECT std(pokaz) FROM pokazat_10 WHERE num between i and max_kol);
+		SET x_d = x_st_dev * x_st_dev;
+		SET x_t = (SELECT pokaz FROM pokazat_10 WHERE num=i);
+		SET z = (x_t - x_mean) * x_d * (x_t - x_mean);
+		SET z1 = 0.35 * (max_kol+1-i) - 0.258;
+		SET Pi = 1 / ( 1 + EXP(3.258 * (z - z1)) );
+		SET tek_date = (SELECT torg_date FROM pokazat_10 WHERE num=i);
+		SET chisl = chisl + Pi*DATEDIFF(min_date,tek_date);
+		SET znam = znam + DATEDIFF(min_date,tek_date);
+		SET i = i - 1;
+		IF i = 0 THEN
+			LEAVE loop1;
+		END IF;
+	END LOOP loop1;
+	
+	SET P = chisl / znam ;
+	IF P > 0.5 THEN
+		SET res = 'Spok';
+	ELSE
+		SET res = 'Norm';
+	END IF;
+	SELECT res INTO OUTFILE 'C:/temp/sost.txt';
+	DROP TABLE IF EXISTS `dop_ge`;
+	DROP TABLE IF EXISTS `kol_zap`;
+	DROP TABLE IF EXISTS `pokazat_10`;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `stat` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -136,7 +212,7 @@ BEGIN
 		st_dev double not null,
 		min double not null,
 		max double not null
-	); #таблица для загрузки статических показателей
+	); 
 	
 	SET i=1;
 	CREATE TABLE dop SELECT torg_date, name, pokaz FROM f_zb_pok where torg_date between min_date and t_date;
@@ -179,4 +255,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-12-08 11:34:45
+-- Dump completed on 2020-12-16 11:19:56

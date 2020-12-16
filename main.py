@@ -2,7 +2,7 @@ import mysql.connector
 from datetime import date
 from tktbl import *
 from tkcalendar import DateEntry
-from scipy.stats import chisquare
+from scipy.stats import normaltest
 from xlsxwriter import Workbook
 
 #окно "статистические характеристики"
@@ -61,6 +61,9 @@ class StatWnd:
                                                    othermonthwebackground='firebrick4',
                                                    othermonthweforeground='black' )
         self.stat_date_t.place( x=728, y=42 )
+    #ограничения по выбору дат в календарях, если уже выбрана она из дат
+        self.stat_date_min.bind( '<<DateEntrySelected>>', self.stat_from_date_sel )
+        self.stat_date_t.bind( '<<DateEntrySelected>>', self.stat_to_date_sel )
     #считываем заданное в фильтрах значение
         self.stat_filt_date_min = self.stat_date_min.get_date()
         self.stat_filt_date_t = self.stat_date_t.get_date()
@@ -94,25 +97,35 @@ class StatWnd:
                                 font='Tkdefault 9 underline' )
         self.stat_prob.place( x=600, y=220 )
     #надпись "Значение Хи-квадрат"
-        self.stat_chi_label = Label( self.stat_wnd,
-                                     text='Значение Хи-квадрат:',
+        self.stat_crit_label = Label( self.stat_wnd,
+                                     text='Значение критерия:',
                                      font='Tkdefault 9 underline' )
-        self.stat_chi_label.place( x=600, y=240 )
+        self.stat_crit_label.place( x=600, y=240 )
     #значение Хи-квадрат
-        self.stat_chi_value = Label( self.stat_wnd,
+        self.stat_crit_value = Label( self.stat_wnd,
                                      font='Tkdefault 12 bold',
                                      foreground='blue2' )
-        self.stat_chi_value.place( x=730, y=240 )
-    #проверка нормальности
+        self.stat_crit_value.place( x=720, y=240 )
+    #надпись "Состояние рынка"
+        self.stat_sost_label = Label( self.stat_wnd,
+                                      text='Состояние рынка:',
+                                      font='Tkdefault 9 underline' )
+        self.stat_sost_label.place( x=600, y=280 )
+    #состояние рынка
+        self.stat_sost_value = Label( self.stat_wnd, font='Tkdefault 12 bold' )
+        self.stat_sost_value.place( x=600, y=305 )
+    #проверка нормальности и состояния рынка
         self.stat_normality()
+        self.stat_sost()
     #создание отчета
         self.stat_report = Button( self.stat_wnd, text='Создать отчет', width=30, command=self.stat_report_on )
-        self.stat_report.place( x=617, y=340 )
+        self.stat_report.place( x=617, y=353 )
 
     #обновление информации
     def stat_refresh(self):
         self.stat_set_dates()
         self.stat_normality()
+        self.stat_sost()
         self.stat_filt_date_min = self.stat_date_min.get_date()
         self.stat_filt_date_t = self.stat_date_t.get_date()
         
@@ -161,13 +174,34 @@ class StatWnd:
                 max_fut = row[0]
                 norm_vyborka.append( float(row[1]) )
     #проверка нормальности
-        self.chi, self.p = chisquare( norm_vyborka )
+        self.crit, self.p = normaltest( norm_vyborka )
         if self.p > 0.05:
             self.stat_norm_check.config( text='подтверждена', foreground='green3' )
         else:
             self.stat_norm_check.config( text='опровергнута', foreground='red3' )
         self.stat_fut_name.config( text=max_fut )
-        self.stat_chi_value.config( text=round(self.chi, 3) )
+        self.stat_crit_value.config( text=round(self.crit, 3) )
+
+    #проверка состояния рынка
+    def stat_sost(self):
+        if os.path.exists('C:\\temp\\sost.txt'):
+            os.remove('C:\\temp\\sost.txt')
+        get_sost = mysql.connector.connect( host = 'localhost',
+                                            database = 'fut_cen_bum',
+                                            user = self.username,
+                                            password = self.password )
+        load_sost = get_sost.cursor()
+        load_sost.execute( 'CALL sost(\'' + self.stat_date_min.get_date().strftime( "%Y-%m-%d" ) +
+                                 '\', \'' + self.stat_date_t.get_date().strftime( "%Y-%m-%d" ) + '\');' )
+        load_sost.close()
+        get_sost.close()        
+        with open( 'C:\\temp\\sost.txt', 'r', newline='' ) as sostfile:
+            sost = sostfile.read()
+            sost = sost[:len(sost)-1]
+        if sost == 'Spok':
+            self.stat_sost_value.config( text='спокойное', foreground='green3' )
+        elif sost == 'Norm':
+            self.stat_sost_value.config( text='нормальное', foreground='dark green' )
         
     #сохранение отчета со страницы статистических характеристик
     def stat_report_on(self):
@@ -212,6 +246,12 @@ class StatWnd:
                         stat_sheet.write( row_id, 4, row['Максимум'] )
                     row_id += 1   
             stat_wb.close()
+
+    #функции, ограничивающие выбор даты 
+    def stat_from_date_sel( self, event ):
+        self.stat_date_t.config( mindate=self.stat_date_min.get_date() )
+    def stat_to_date_sel( self, event ):
+        self.stat_date_min.config( maxdate=self.stat_date_t.get_date() )
 
 #класс окна с основной таблицей
 class TableWnd:
@@ -541,6 +581,7 @@ class TableWnd:
         self.quot_from.insert( 0, self.filterquot[0] )                    
         self.quot_to.delete( 0, END )
         self.quot_to.insert( 0, self.filterquot[1] )
+        self.append_on()
 
     #кнопка "Сохранить изменения"
     def save_on(self):
@@ -562,7 +603,6 @@ class TableWnd:
                                 self.table.model.edited_records.index('NEXT')
                             except ValueError:
                                 self.table.model.edited_records = [self.table.model.edited_records[0]]
-                                print(len(self.table.model.edited_records))
                             else:
                                 while self.table.model.edited_records[index] != 'NEXT':
                                     self.table.model.edited_records.remove( self.table.model.edited_records[index1] )
@@ -614,7 +654,7 @@ class TableWnd:
                     editcount = 0
                     for record in editlist:
                         #проверка на корректность:
-                        print(len(record[1]) == 7, or len(record[1]) == 8 )
+                        print(len(record[1]) == 7 or len(record[1]) == 8 )
                         print(self.chrono_check( record[1][0], record[1][2] ) )
                         print(self.name_check( record[1][1] ) )
                         print(self.quot_check( record[1][3] ) )
@@ -802,7 +842,7 @@ class TableWnd:
 
     #запрос подтверждения выхода при несохраненной инф-ии
     def table_wnd_close(self):
-        if self.table.del_records != []:
+        if self.table.del_records or self.table.model.edited_records:
             not_saved = messagebox.askyesno( title = 'Выход',
                                              message = 'Вы действительно хотите выйти?\n'+
                                                        'Несохраненные данные будут потеряны!',
