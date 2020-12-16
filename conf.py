@@ -61,7 +61,13 @@ with open( 'C:\\temp\\pok.csv', 'r+', newline='' ) as tablefile1:
                 num = 2
             else:
                 dan_tek_2 = pr_sps[i-2].split('\'')
-                pokazat = math.log( abs(rk( float(dan_tek[9]), dan_tek[5], dan_tek[7] )/rk( float(dan_tek_2[9]), dan_tek_2[5], dan_tek_2[7] )))
+                denom = rk( float(dan_tek_2[9]), dan_tek_2[5], dan_tek_2[7] )
+                if denom == 0:
+                    denom = 1
+                undlog = abs(rk( float(dan_tek[9]), dan_tek[5], dan_tek[7] )/ denom )
+                if undlog == 0:
+                    undlog = 1
+                pokazat = math.log(undlog)
                 tablefile2.write( pr_sps[i] + ', \'' + str(pokazat) + '\'\n' )
                 i += 1
                 

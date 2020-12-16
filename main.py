@@ -467,20 +467,70 @@ class TableWnd:
     #проверка quotation
     def quot_check( self, quot ):
         flag_dot = 0
-        if quot=='': return False
+        if quot=='':
+            return False
         for symb in quot:                         #поиск недопустимых символов
-            if symb.isnumeric() == True: pass
+            if symb.isnumeric() == True:
+                pass
             elif symb == '.' or symb == ',':
                 flag_dot += 1                     #обнаружена одна запятая или точка, больше их уже быть не может
             elif flag_dot > 1:                      #если найдена еще одна точка (такого быть не может)
                 return False
-            else: return False
+            else:
+                return False
         quot = quot.replace( ',', '.' )
-        if float( quot ) < 0: return False
+        if float( quot ) < 0:
+            return False
         if ( len( quot ) > 1 and quot[0] == '0' and quot[1] != '.' or    #если число начинается на 0, но не 0.
              len( quot ) == 2 and quot[1] == '.'):                       #если последний символ - .
                return False   
         return True
+
+    #проверка на правильность введенного формата данных
+    def date_check( self, date ):
+        if ( not date == '' and date[4]=='-' and date[7]=='-' and len(date)==10 and
+            (date[:4] + date[5:7] + date[8:10]).isnumeric() == True and int(date[5:7]) <= 12 ):
+            if date[5:7] in ('01','03','05','07','08','10','12'):
+                if not int(date[8:10]) <= 31:
+                    return False
+            elif date[5:7] in ('04','06','09','11'):
+                if not int(date[8:10]) <= 30:
+                    return False
+            elif date[5:7] == '02':
+                if not int(date[8:10]) <= 29:
+                    return False
+                elif date[8:10] == '29' and not (int(date[:4])/4).is_integer() == True:
+                    return False
+            else:
+                return False
+        else:
+            return False
+        return True
+
+    #проверка на хронологию дат(левая меньше правой)
+    def chrono_check( self, l_date, r_date ):
+        if self.date_check(l_date) == False or self.date_check(r_date) == False:
+            return False
+        elif ( int(l_date[:4]) > int(r_date[:4]) or
+               int(l_date[:4]) == int(r_date[:4]) and int(l_date[5:7]) > int(r_date[5:7]) or
+               int(l_date[:4]) == int(r_date[:4]) and int(l_date[5:7]) == int(r_date[5:7]) and
+                                                      int(l_date[8:10]) > int(r_date[8:10]) ):
+            return False
+        return True
+
+    #проверка имени фьючерса
+    def name_check( self, name ):
+        if len(name) != 10 or name[5] != '-' or not (name[:5]+name[6:10]).isnumeric():
+            return False
+        elif not self.date_check( '1999-' + name[8:10] + '-' + name[6:8] ):
+            return False
+        return True
+
+    #проверка num
+    def num_check( self, num ):
+        if not num.isnumeric() or ( len(num) > 1 and num[0] == '0' ):
+            return False   
+        return True        
 
     #кнопка "Сбросить фильтры"
     def clear_on(self):
@@ -495,39 +545,173 @@ class TableWnd:
     #кнопка "Сохранить изменения"
     def save_on(self):
         save = False
-        if self.table.del_records != [] or len(self.table.model.edit_records) != 0:
+        if self.table.del_records or self.table.model.edited_records:
             save = messagebox.askyesno( title = 'Сохранение изменений',
                                         message = 'Изменить базу данных?',
                                         parent = self.tableframe )
         if save:
-            if self.table.del_records != []:
-                for delrow in self.table.del_records:
+            errflag = False
+            if self.table.model.edited_records:
+                #удаляем из списка на изменение то, что удалили в процессе изменения
+                if self.table.model.del_edit_records:
+                    for deleditrow in self.table.model.del_edit_records:
+                        if deleditrow in self.table.model.edited_records:
+                            index = self.table.model.edited_records.index(deleditrow)
+                            index1 = index
+                            try:
+                                self.table.model.edited_records.index('NEXT')
+                            except ValueError:
+                                self.table.model.edited_records = [self.table.model.edited_records[0]]
+                                print(len(self.table.model.edited_records))
+                            else:
+                                while self.table.model.edited_records[index] != 'NEXT':
+                                    self.table.model.edited_records.remove( self.table.model.edited_records[index1] )
+                                    index1 += 1
+                                while index < 0:
+                                    self.table.model.edited_records.remove( self.table.model.edited_records[index] )
+                                    index -= 1
+                                    if self.table.model.edited_records[index] == 'NEXT':
+                                        self.table.model.edited_records.remove( self.table.model.edited_records[index] )
+                                        break
+                if len(self.table.model.edited_records) > 1:
+                    #находим местоположения NEXT
+                    nextindices = []
+                    for i in range(len(self.table.model.edited_records)-1):
+                        if self.table.model.edited_records[i] == 'NEXT':
+                            nextindices.append(i)
+                    editlist = []
+                    #убираем NEXT, оставляем только начальное и конечные значения
+                    if nextindices:
+                        editlist.append( [ self.table.model.edited_records[0], self.table.model.edited_records[ nextindices[0]-1 ] ] )
+                        for i in range(len(nextindices)):
+                            if i == len(nextindices)-1:
+                                editlist.append( [ self.table.model.edited_records[ nextindices[i]+1 ],
+                                                   self.table.model.edited_records[len(self.table.model.edited_records)-1] ] )
+                            else:
+                                editlist.append( [ self.table.model.edited_records[ nextindices[i]+1 ],
+                                                   self.table.model.edited_records[ nextindices[i+1]-1 ] ] )
+                    else:
+                        editlist.append( [ self.table.model.edited_records[0],
+                                           self.table.model.edited_records[len(self.table.model.edited_records)-1] ] )
+                    #соединяем истории редактирования, если одну и ту же запись редактировали несколько раз
+                    twice_occur = []
+                    for i in range(len(editlist)):
+                        for j in range(len(editlist)):
+                            editlist[j][0]
+                            if editlist[i][1] == editlist[j][0]:
+                                editlist[i][1] = editlist[j][1]
+                                twice_occur.append(j)
+                    twice_occur.reverse()
+                    for todel in twice_occur:
+                        editlist.remove(editlist[todel])
+                    #открываем таблицу для модификации данных            
                     edit_db = mysql.connector.connect( host = 'localhost',
                                                        database = 'fut_cen_bum',
                                                        user = self.username,
                                                        password = self.password )
                     edit_db._open_connection()
                     edit_db_cursor = edit_db.cursor()
-                    edit_db_cursor.execute( 'DELETE FROM f_zb_pok WHERE (' +
-                                            'torg_date=CAST(\'' + str(delrow[0]) + '\' AS DATE) AND ' +
-                                            'name=\''+str(delrow[1])+'\' AND '+
-                                            'day_end=CAST(\'' + str(delrow[2]) + '\' AS DATE) AND ' +
-                                            'quotation=' + str(delrow[3]) + ' AND ' +
-                                            'min_quot=' + str(delrow[4]) + ' AND ' +
-                                            'max_quot=' + str(delrow[5]) + ' AND ' +
-                                            'num_contr=' + str(delrow[6]) + ');' )
+                    editcount = 0
+                    for record in editlist:
+                        #проверка на корректность:
+                        print(len(record[1]) == 7, or len(record[1]) == 8 )
+                        print(self.chrono_check( record[1][0], record[1][2] ) )
+                        print(self.name_check( record[1][1] ) )
+                        print(self.quot_check( record[1][3] ) )
+                        print(self.quot_check( record[1][4] ) )
+                        print(self.quot_check( record[1][5] ) )
+                        print(self.num_check( record[1][6] ) )
+                        if ( len(record[1]) == 7 or len(record[1]) == 8 and 
+                             self.chrono_check( record[1][0], record[1][2] ) and
+                             self.name_check( record[1][1] ) and
+                             self.quot_check( record[1][3] ) and
+                             self.quot_check( record[1][4] ) and
+                             self.quot_check( record[1][5] ) and
+                             self.num_check( record[1][6] ) ):
+                            print('izm1')
+                            if not record[0]:
+                                if not record[1][1] in self.fut_names:
+                                    edit_db_cursor.execute( 'SET FOREIGN_KEY_CHECKS=0;' )
+                                    edit_db_cursor.execute( 'INSERT INTO zb (name, base, exec_date) VALUES ' +
+                                                            '(\''+record[1][1]+'\', \'SU'+str(record[1][1])[:5]+'RMFS\', \'' 
+                                                                 +str(record[1][0])[:4]+'-'+str(record[1][1])[8:10]+'-'+str(record[1][1])[6:8]+'\');' )
+                                    edit_db_cursor.execute( 'INSERT INTO f_zb ' +
+                                                            '(torg_date, name, day_end, quotation, min_quot, max_quot, num_contr) VALUES ' +
+                                                            '(\''+record[1][0]+'\', \''+record[1][1]+'\', \''+record[1][2]+'\', \''+record[1][3]+'\', \''
+                                                                 +record[1][4]+'\', \''+record[1][5]+'\', \''+record[1][6]+'\');' )
+                                    edit_db_cursor.execute( 'SET FOREIGN_KEY_CHECKS=1;' )
+                                else:
+                                    edit_db_cursor.execute( 'INSERT INTO f_zb ' +
+                                                            '(torg_date, name, day_end, quotation, min_quot, max_quot, num_contr) VALUES ' +
+                                                            '(\''+record[1][0]+'\', \''+record[1][1]+'\', \''+record[1][2]+'\', \''+record[1][3]+'\', \''
+                                                                 +record[1][4]+'\', \''+record[1][5]+'\', \''+record[1][6]+'\');' )
+                            else:
+                                edit_db_cursor.execute( 'UPDATE f_zb ' +
+                                                        'SET torg_date=\'' + record[1][0] + '\', ' +
+                                                             'name=\'' + record[1][1] + '\', ' +
+                                                              'day_end=\'' + record[1][2] + '\', ' +
+                                                              'quotation=\'' + record[1][3] + '\', ' +
+                                                              'min_quot=\'' + record[1][4] + '\', ' +
+                                                              'max_quot=\'' + record[1][5] + '\', ' +
+                                                              'num_contr=\'' + record[1][6] + '\' '
+                                                        'WHERE torg_date=\'' + record[0][0] + '\' AND ' +
+                                                              'name=\'' + record[0][1] + '\' AND ' +
+                                                              'day_end=\'' + record[0][2] + '\' AND ' +
+                                                              'quotation=\'' + record[0][3] + '\' AND ' +
+                                                              'min_quot=\'' + record[0][4] + '\' AND ' +
+                                                              'max_quot=\'' + record[0][5] + '\' AND ' +
+                                                              'num_contr=\'' + record[0][6] + '\';' )
+                        else:
+                            messagebox.showerror( title = 'Ошибка',
+                                                  message = 'Введенные данные не соответствуют требованиям!',
+                                                  parent = self.tableframe )
+                            errflag = True
+                            edit_db_cursor.close()
+                            edit_db.close()
+                            break
+                        editcount += 1
+                        if editcount == len(editlist):
+                            if not self.table.del_records:
+                                messagebox.showinfo( title = 'Изменение БД',
+                                                     message = 'База данных успешно изменена!',
+                                                     parent = self.tableframe )
                     edit_db_cursor.close()
                     edit_db.close()
+                
+            if self.table.del_records and not errflag:
+                if self.table.model.edited_records:
+                    self.table.del_records.append(self.table.model.edited_records[0])
+                for delrow in self.table.del_records:
+                    del_db = mysql.connector.connect( host = 'localhost',
+                                                      database = 'fut_cen_bum',
+                                                      user = self.username,
+                                                      password = self.password )
+                    del_db._open_connection()
+                    del_db_cursor = del_db.cursor()
+                    del_db_cursor.execute( 'SET FOREIGN_KEY_CHECKS=0;' )
+                    del_db_cursor.execute( 'DELETE FROM f_zb WHERE (' +
+                                           'torg_date=CAST(\'' + str(delrow[0]) + '\' AS DATE) AND ' +
+                                           'name=\''+str(delrow[1])+'\' AND '+
+                                           'day_end=CAST(\'' + str(delrow[2]) + '\' AS DATE) AND ' +
+                                           'quotation=' + str(delrow[3]) + ' AND ' +
+                                           'min_quot=' + str(delrow[4]) + ' AND ' +
+                                           'max_quot=' + str(delrow[5]) + ' AND ' +
+                                           'num_contr=' + str(delrow[6]) + ');' )
+                    del_db_cursor.execute( 'SET FOREIGN_KEY_CHECKS=0;' )
+                    del_db_cursor.close()
+                    del_db.close()
                 saved = messagebox.showinfo( title = 'Изменение БД',
                                              message = 'База данных успешно изменена!',
                                              parent = self.tableframe )
+            if not errflag:
+                exec(open('conf.py').read())
                 self.get_filters_values()
                 self.torg_date_from.config( maxdate = self.maxdate, mindate = self.mindate )
                 self.torg_date_to.config( maxdate = self.maxdate, mindate = self.mindate )
                 if self.torg_date_from.get_date() < self.mindate:
                     self.torg_date_from.set_date( self.mindate.year )
                 if self.torg_date_to.get_date() > self.maxdate:
-                    self.torg_date_from.config( self.mindate.year )
+                    self.torg_date_from.config( self.maxdate.year )
                 if self.quot_from.get() < self.filterquot[0]:
                     self.quot_from.delete( 0, END )
                     self.quot_from.insert( 0, self.filterquot[0] )
@@ -537,52 +721,25 @@ class TableWnd:
                 if self.quot_to.get() < self.quot_from.get():
                     self.quot_from.delete( 0, END )
                     self.quot_from.insert( 0, self.filterquot[0] )
-                    print(self.filterquot[0]) 
                 self.name_menu['values'] = tuple( self.fut_names )
                 self.name_menu.current(0)
                 self.append_on()
-            #for i in 
-            if len(self.table.model.edit_records) != 0:
-                print(self.table.model.edit_records)
-                for editrow in self.table.model.edit_records:
-                    pass
-                if self.table.del_records == []:
-                    messagebox.showinfo( title = 'Изменение БД',
-                                         message = 'База данных успешно изменена!',
-                                         parent = self.tableframe )
-                self.get_filters_values()
-                self.torg_date_from.config( maxdate = self.maxdate, mindate = self.mindate )
-                self.torg_date_to.config( maxdate = self.maxdate, mindate = self.mindate )
-                if self.torg_date_from.get_date() < self.mindate:
-                    self.torg_date_from.set_date( self.mindate.year )
-                if self.torg_date_to.get_date() > self.maxdate:
-                    self.torg_date_from.config( self.mindate.year )
-                if self.quot_from.get() < self.filterquot[0]:
-                    self.quot_from.delete( 0, END )
-                    self.quot_from.insert( 0, self.filterquot[0] )
-                if self.quot_to.get() > self.filterquot[1]:
-                    self.quot_to.delete( 0, END )
-                    self.quot_to.insert( 0, self.filterquot[1] )
-                if self.quot_to.get() < self.quot_from.get():
-                    self.quot_from.delete( 0, END )
-                    self.quot_from.insert( 0, self.filterquot[0] )
-                    print(self.filterquot[0]) 
-                self.name_menu['values'] = tuple( self.fut_names )
-                self.name_menu.current(0)
-                self.append_on()
-            self.table.del_records.clear()
-            self.table.model.edit_records.clear()
+                self.table.del_records.clear()
+                self.table.model.edited_records.clear()
+                self.table.model.del_edit_records.clear()
+            errflag = False
             
     #кнопка "Откатить изменения"
     def undo_on(self):
         undo = False
-        if self.table.del_records != [] or len(self.table.model.edit_records) != 0:
+        if self.table.del_records or self.table.model.edited_records:
             undo = messagebox.askyesno( title = 'Отмена изменений',
                                         message = 'Откатить все изменения?',
                                         parent = self.tableframe )
         if undo:
             self.table.del_records.clear()
-            self.table.model.edit_records.clear()
+            self.table.model.edited_records.clear()
+            self.table.model.del_edit_records.clear()
             self.append_on()
 
     #кнопка "Создать отчет"

@@ -6,41 +6,43 @@ from tkintertable.TableModels import *
 
 #пользовательская модификация классов Tkintertable
 class MyTableModel(TableModel):
-    edit_record = []
-    edit_records = dict()
-    already_edited = set()
+    edited_records = []
+    del_edit_records = []
+    def deleteRow(self, rowIndex=None, key=None, update=True):
+        """Delete a row"""
+        if key == None or not key in self.reclist:
+            key = self.getRecName(rowIndex)
+        self.del_edit_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
+        del self.data[key]
+        if update==True:
+            self.reclist.remove(key)
+        return
+    
     def setValueAt(self, value, rowIndex, columnIndex):
         """Changed the dictionary when cell is updated by user"""
         name = self.getRecName(rowIndex)
-        if tuple( self.getRecordAtRow(rowIndex).values() ) not in self.edit_records.values():
-            self.edit_record.clear()
-        else:
-            self.edit_record.append( list( self.getRecordAtRow(rowIndex).values() ) )
         colname = self.getColumnName(columnIndex)
         coltype = self.columntypes[colname]
+        if not self.edited_records:
+            self.edited_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
+        elif list( self.getRecordAtRow(rowIndex).values() ) != self.edited_records[ len(self.edited_records)-1 ]:
+            self.edited_records.append('NEXT')
+            self.edited_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
         if coltype == 'number':
             try:
-                if value == '': #need this to allow deletion of values
+                if value == '': 
                     self.data[name][colname] = ''
-                    self.edit_record.append( list( self.getRecordAtRow(rowIndex).values() ) )
-                    self.edit_records.update( { tuple(self.edit_record[0]):
-                                               tuple(self.edit_record[len(self.edit_record)-1]) } )
-                        
+                    self.edited_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
                 else:
                     self.data[name][colname] = float(value)
-                    self.edit_record.append( list( self.getRecordAtRow(rowIndex).values() ) )
-                    self.edit_records.update( { tuple(self.edit_record[0]):
-                                               tuple(self.edit_record[len(self.edit_record)-1]) } )
+                    self.edited_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
             except:
                 pass
         else:
+            self.edited_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
             self.data[name][colname] = value
-            self.edit_record.append( list( self.getRecordAtRow(rowIndex).values() ) )
-            self.edit_records.update( { tuple(self.edit_record[0]):
-                                       tuple(self.edit_record[len(self.edit_record)-1]) } )
-        self.already_edited.add( list( self.getRecordAtRow(rowIndex).values() ) )
-        print(self.edit_records)
-        print(self.already_edited)
+        self.edited_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
+        print(self.edited_records)
         return
     
     def copy(self):
@@ -207,7 +209,6 @@ class MyTableCanvas(TableCanvas):
         if self.read_only == True or col == 7:
             return
         #absrow = self.get_AbsoluteRow(row)
-        print(col)
         h=self.rowheight
         model=self.getModel()
         cellvalue = self.model.getCellRecord(row, col)
