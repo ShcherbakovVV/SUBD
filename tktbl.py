@@ -42,7 +42,6 @@ class MyTableModel(TableModel):
             self.edited_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
             self.data[name][colname] = value
         self.edited_records.append( list( self.getRecordAtRow(rowIndex).values() ) )
-        print(self.edited_records)
         return
     
     def copy(self):
@@ -179,8 +178,6 @@ class MyTableCanvas(TableCanvas):
                 for i in rows:
                     del_rec_as_list = list(self.model.getRecordAtRow(i).values())
                     self.del_records.append( del_rec_as_list )
-                    #del_rec_as_list[1]
-                    #self.columnNames.index(columnName)
                 self.model.deleteRows(rows)
                 self.clearSelected()
                 self.setSelectedRow(0)

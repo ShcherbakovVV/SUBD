@@ -654,13 +654,6 @@ class TableWnd:
                     editcount = 0
                     for record in editlist:
                         #проверка на корректность:
-                        print(len(record[1]) == 7 or len(record[1]) == 8 )
-                        print(self.chrono_check( record[1][0], record[1][2] ) )
-                        print(self.name_check( record[1][1] ) )
-                        print(self.quot_check( record[1][3] ) )
-                        print(self.quot_check( record[1][4] ) )
-                        print(self.quot_check( record[1][5] ) )
-                        print(self.num_check( record[1][6] ) )
                         if ( len(record[1]) == 7 or len(record[1]) == 8 and 
                              self.chrono_check( record[1][0], record[1][2] ) and
                              self.name_check( record[1][1] ) and
@@ -668,39 +661,49 @@ class TableWnd:
                              self.quot_check( record[1][4] ) and
                              self.quot_check( record[1][5] ) and
                              self.num_check( record[1][6] ) ):
-                            print('izm1')
-                            if not record[0]:
-                                if not record[1][1] in self.fut_names:
-                                    edit_db_cursor.execute( 'SET FOREIGN_KEY_CHECKS=0;' )
-                                    edit_db_cursor.execute( 'INSERT INTO zb (name, base, exec_date) VALUES ' +
-                                                            '(\''+record[1][1]+'\', \'SU'+str(record[1][1])[:5]+'RMFS\', \'' 
-                                                                 +str(record[1][0])[:4]+'-'+str(record[1][1])[8:10]+'-'+str(record[1][1])[6:8]+'\');' )
-                                    edit_db_cursor.execute( 'INSERT INTO f_zb ' +
-                                                            '(torg_date, name, day_end, quotation, min_quot, max_quot, num_contr) VALUES ' +
-                                                            '(\''+record[1][0]+'\', \''+record[1][1]+'\', \''+record[1][2]+'\', \''+record[1][3]+'\', \''
-                                                                 +record[1][4]+'\', \''+record[1][5]+'\', \''+record[1][6]+'\');' )
-                                    edit_db_cursor.execute( 'SET FOREIGN_KEY_CHECKS=1;' )
+                            with open('C://temp//out.csv', 'r') as dupl_check:
+                                if not ( record[1][0]+','+record[1][1]+','+record[1][2]+','+record[1][3]+','+
+                                         record[1][4]+','+record[1][5]+','+record[1][6] ) in dupl_check.read():
+                                    if not record[0]:
+                                        if not record[1][1] in self.fut_names:
+                                            edit_db_cursor.execute( 'SET FOREIGN_KEY_CHECKS=0;' )
+                                            edit_db_cursor.execute( 'INSERT INTO zb (name, base, exec_date) VALUES ' +
+                                                                    '(\''+record[1][1]+'\', \'SU'+str(record[1][1])[:5]+'RMFS\', \'' 
+                                                                         +str(record[1][0])[:4]+'-'+str(record[1][1])[8:10]+'-'+str(record[1][1])[6:8]+'\');' )
+                                            edit_db_cursor.execute( 'INSERT INTO f_zb ' +
+                                                                    '(torg_date, name, day_end, quotation, min_quot, max_quot, num_contr) VALUES ' +
+                                                                    '(\''+record[1][0]+'\', \''+record[1][1]+'\', \''+record[1][2]+'\', \''+record[1][3]+'\', \''
+                                                                         +record[1][4]+'\', \''+record[1][5]+'\', \''+record[1][6]+'\');' )
+                                            edit_db_cursor.execute( 'SET FOREIGN_KEY_CHECKS=1;' )
+                                        else:
+                                            edit_db_cursor.execute( 'INSERT INTO f_zb ' +
+                                                                    '(torg_date, name, day_end, quotation, min_quot, max_quot, num_contr) VALUES ' +
+                                                                    '(\''+record[1][0]+'\', \''+record[1][1]+'\', \''+record[1][2]+'\', \''+record[1][3]+'\', \''
+                                                                         +record[1][4]+'\', \''+record[1][5]+'\', \''+record[1][6]+'\');' )
+                                    else:
+                                        edit_db_cursor.execute( 'UPDATE f_zb ' +
+                                                                'SET torg_date=\'' + record[1][0] + '\', ' +
+                                                                     'name=\'' + record[1][1] + '\', ' +
+                                                                      'day_end=\'' + record[1][2] + '\', ' +
+                                                                      'quotation=\'' + record[1][3] + '\', ' +
+                                                                      'min_quot=\'' + record[1][4] + '\', ' +
+                                                                      'max_quot=\'' + record[1][5] + '\', ' +
+                                                                      'num_contr=\'' + record[1][6] + '\' '
+                                                                'WHERE torg_date=\'' + record[0][0] + '\' AND ' +
+                                                                      'name=\'' + record[0][1] + '\' AND ' +
+                                                                      'day_end=\'' + record[0][2] + '\' AND ' +
+                                                                      'quotation=\'' + record[0][3] + '\' AND ' +
+                                                                      'min_quot=\'' + record[0][4] + '\' AND ' +
+                                                                      'max_quot=\'' + record[0][5] + '\' AND ' +
+                                                                      'num_contr=\'' + record[0][6] + '\';' )
                                 else:
-                                    edit_db_cursor.execute( 'INSERT INTO f_zb ' +
-                                                            '(torg_date, name, day_end, quotation, min_quot, max_quot, num_contr) VALUES ' +
-                                                            '(\''+record[1][0]+'\', \''+record[1][1]+'\', \''+record[1][2]+'\', \''+record[1][3]+'\', \''
-                                                                 +record[1][4]+'\', \''+record[1][5]+'\', \''+record[1][6]+'\');' )
-                            else:
-                                edit_db_cursor.execute( 'UPDATE f_zb ' +
-                                                        'SET torg_date=\'' + record[1][0] + '\', ' +
-                                                             'name=\'' + record[1][1] + '\', ' +
-                                                              'day_end=\'' + record[1][2] + '\', ' +
-                                                              'quotation=\'' + record[1][3] + '\', ' +
-                                                              'min_quot=\'' + record[1][4] + '\', ' +
-                                                              'max_quot=\'' + record[1][5] + '\', ' +
-                                                              'num_contr=\'' + record[1][6] + '\' '
-                                                        'WHERE torg_date=\'' + record[0][0] + '\' AND ' +
-                                                              'name=\'' + record[0][1] + '\' AND ' +
-                                                              'day_end=\'' + record[0][2] + '\' AND ' +
-                                                              'quotation=\'' + record[0][3] + '\' AND ' +
-                                                              'min_quot=\'' + record[0][4] + '\' AND ' +
-                                                              'max_quot=\'' + record[0][5] + '\' AND ' +
-                                                              'num_contr=\'' + record[0][6] + '\';' )
+                                    messagebox.showerror( title = 'Ошибка',
+                                                          message = 'Введенные данные не соответствуют требованиям!',
+                                                          parent = self.tableframe )
+                                    errflag = True
+                                    edit_db_cursor.close()
+                                    edit_db.close()
+                                    break
                         else:
                             messagebox.showerror( title = 'Ошибка',
                                                   message = 'Введенные данные не соответствуют требованиям!',
