@@ -270,22 +270,7 @@ class MyTableCanvas(TableCanvas):
 
     def drawMultipleRows(self, rowlist):
         """Draw more than one row selection"""
-        if self.read_only == True:
-            pass
-        else:
-            self.delete('multiplesel')
-            for r in rowlist:
-                if r not in self.visiblerows or r > self.rows-1:
-                    continue
-                x1,y1,x2,y2 = self.getCellCoords(r,0)
-                x2 = self.tablewidth
-                rect = self.create_rectangle(x1,y1,x2,y2,
-                                          fill=self.multipleselectioncolor,
-                                          outline=self.rowselectedcolor,
-                                          tag=('multiplesel','rowrect'))
-            self.lower('multiplesel')
-            self.lower('fillrect')
-        return
+        pass
 
     def drawRect(self, row, col, color=None, tag=None, delete=1):
         """Cell is colored"""

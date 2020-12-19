@@ -654,7 +654,7 @@ class TableWnd:
                     editcount = 0
                     for record in editlist:
                         #проверка на корректность:
-                        if ( len(record[1]) == 7 or len(record[1]) == 8 and 
+                        if ( (len(record[1]) == 7 or len(record[1]) == 8) and 
                              self.chrono_check( record[1][0], record[1][2] ) and
                              self.name_check( record[1][1] ) and
                              self.quot_check( record[1][3] ) and
@@ -662,7 +662,7 @@ class TableWnd:
                              self.quot_check( record[1][5] ) and
                              self.num_check( record[1][6] ) ):
                             with open('C://temp//out.csv', 'r') as dupl_check:
-                                if not ( record[1][0]+','+record[1][1]+','+record[1][2]+','+record[1][3]+','+
+                                if not str( record[1][0]+','+record[1][1]+','+record[1][2]+','+record[1][3]+','+
                                          record[1][4]+','+record[1][5]+','+record[1][6] ) in dupl_check.read():
                                     if not record[0]:
                                         if not record[1][1] in self.fut_names:
